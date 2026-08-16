@@ -17,7 +17,7 @@ import { describe, expect, test } from 'bun:test'
 import { buildInspectUrl, makeSkinPlacement } from '@skinhub/cdn/inspect'
 import { emptyKeychain, emptySticker } from '@skinhub/cdn/placement'
 
-import { fromSlots, resolveSubject, toPublicItem, toSlots } from '../src/item.js'
+import { fromInspectLink, fromSlots, resolveSubject, toInspectLink, toPublicItem, toSlots } from '../src/item.js'
 import type { PlacementSlots } from '../src/protocol.js'
 
 /**
@@ -304,5 +304,66 @@ describe('toPublicItem', () => {
 			charm: { id: 30, seed: 7 },
 		})
 		expect(back.stickers).toEqual([{ id: 1, slot: 2, wear: 0.5, rotation: 10, offsetX: 0.1, offsetY: 0.2 }])
+	})
+})
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════
+ * BACK OUT AGAIN
+ *
+ * The half a picker actually ships on: the user configures an item and wants the link. Every one of
+ * these encodes a fact that is silent when you get it wrong, which is why the functions exist in the
+ * package rather than in a snippet in the README.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+describe('toInspectLink / fromInspectLink', () => {
+	const item = {
+		weapon: 'weapon_ak47',
+		paintIndex: 44,
+		float: 0.1234,
+		seed: 661,
+		statTrak: 1337,
+		nameTag: 'hello',
+		stickers: [{ id: 5032, slot: 0 as const, wear: 0.25, rotation: 12, offsetX: 0.1, offsetY: -0.2 }],
+		charm: { id: 30, seed: 99, offset: [0.01, 0.02, 0.03] as [number, number, number] },
+	}
+
+	test('an item round-trips through a real inspect link', () => {
+		const back = fromInspectLink(toInspectLink(item))
+		expect(back).not.toBeNull()
+		expect(back).toMatchObject({ weapon: 'weapon_ak47', paintIndex: 44, seed: 661, statTrak: 1337, nameTag: 'hello' })
+		expect(back?.float).toBeCloseTo(0.1234, 5)
+		expect(back?.charm).toMatchObject({ id: 30, seed: 99 })
+		expect(back?.stickers?.[0]).toMatchObject({ id: 5032, slot: 0, rotation: 12 })
+	})
+
+	/** `0` is a freshly-minted counter and `false` is no module. One boolean and one count, not one number. */
+	test('StatTrak 0 survives as 0, and false survives as false', () => {
+		expect(fromInspectLink(toInspectLink({ ...item, statTrak: 0 }))?.statTrak).toBe(0)
+		expect(fromInspectLink(toInspectLink({ ...item, statTrak: false }))?.statTrak).toBe(false)
+	})
+
+	/** An encoder rejects `scale <= 0`, and the WeaponPaints row default of `0` means "default". */
+	test('a sticker with no scale still produces a link that builds', () => {
+		expect(() => toInspectLink({ weapon: 'weapon_awp', paintIndex: 344, stickers: [{ id: 1 }] })).not.toThrow()
+	})
+
+	test('the minimum item is enough', () => {
+		const back = fromInspectLink(toInspectLink({ weapon: 'weapon_awp', paintIndex: 344 }))
+		expect(back).toMatchObject({ weapon: 'weapon_awp', paintIndex: 344 })
+	})
+
+	test('a HUD alias resolves rather than encoding a zero defindex', () => {
+		expect(fromInspectLink(toInspectLink({ weapon: 'sfui_wpnhud_knifebayonet', paintIndex: 0 }))?.weapon).toBe(
+			'weapon_bayonet',
+		)
+	})
+
+	/** A link with `defindex: 0` in it looks like a link and opens an empty inspect screen. */
+	test('a weapon with no defindex throws rather than producing a plausible-looking dud', () => {
+		expect(() => toInspectLink({ weapon: 'weapon_from_the_future', paintIndex: 1 })).toThrow(/no defindex/)
+	})
+
+	test('a link a user mistyped is null, not an exception', () => {
+		expect(fromInspectLink('steam://rungame/730/nonsense')).toBeNull()
 	})
 })

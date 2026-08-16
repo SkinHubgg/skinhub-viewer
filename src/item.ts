@@ -30,12 +30,12 @@
  * use us - That is stated as a requirement and it is the path the product exists for.
  */
 
-import { readInspectUrl } from '@skinhub/cdn/inspect'
-import { emptyKeychain, emptySticker, type SkinPlacement } from '@skinhub/cdn/placement'
+import { buildInspectUrl, readInspectUrl } from '@skinhub/cdn/inspect'
+import { emptyKeychain, emptySticker, makeSkinPlacement, type SkinPlacement } from '@skinhub/cdn/placement'
 
 import type { FrameItem, PlacementSlots } from './protocol.js'
 import type { SkinViewerCharm, SkinViewerError, SkinViewerItem, SkinViewerSticker, ViewerSubject } from './types.js'
-import { normalizeWeaponId, weaponIdForDefindex } from './weapons.js'
+import { defindexForWeaponId, normalizeWeaponId, weaponIdForDefindex } from './weapons.js'
 
 /** `sticker_id === 0` is how the wire says "this slot is empty". */
 const isPlaced = (placement: { sticker_id: number }) => placement.sticker_id > 0
@@ -293,4 +293,81 @@ export const toPublicItem = (item: FrameItem): SkinViewerItem => {
 		stickers,
 		charm,
 	}
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════
+ * BACK OUT AGAIN — AN ITEM AS AN INSPECT LINK
+ *
+ * *** THE RETURN JOURNEY, AND IT IS THE HALF THAT WAS MISSING. *** Everything above turns an
+ * integrator's item INTO a picture. A skin picker is not finished when it can show you the item; it is
+ * finished when it can hand you the link. Without these two functions every integrator writes the same
+ * forty lines against `@skinhub/cdn`'s placement API - and writes them from the same three facts that
+ * are easy to get wrong and silent when you do:
+ *
+ *   - `stattrak: 0` is a REAL, freshly-minted counter and `false` is no module. One boolean and one
+ *     count, not one nullable number.
+ *   - an unset sticker `scale` is `1`, not `0`. The WeaponPaints row default is `0` meaning "default",
+ *     and an encoder rejects `scale <= 0`, so passing it through produces a link that will not build.
+ *   - a charm's seed rides in `pattern`, because the keychain message is the sticker message reused.
+ *
+ * That list is the argument for these living here rather than in a docs snippet: they are the same
+ * three facts `toSlots` already encodes, and having them written twice is how the two copies disagree.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * A viewer item as a `SkinPlacement` — `@skinhub/cdn`'s decoded-inspect-link shape.
+ *
+ * Reach for this when you want the placement itself: to write WeaponPaints rows, to diff against a
+ * link you already hold, or to hand to another `@skinhub/cdn` helper. If you just want the link, use
+ * {@link toInspectLink}.
+ *
+ * *** THROWS ON A WEAPON WITH NO DEFINDEX, and that is the only honest answer. *** An inspect link
+ * identifies its item by number, so an id this build has no row for cannot be encoded at all. Returning
+ * a link with `defindex: 0` in it would produce a string that looks like a link, copies like a link and
+ * opens an empty CS2 inspect screen.
+ */
+export const toPlacement = (item: SkinViewerItem): SkinPlacement => {
+	const weapon = 'weapon' in item && item.weapon ? item.weapon : undefined
+	const defindex = weapon ? defindexForWeaponId(weapon) : item.defindex
+	if (typeof defindex !== 'number')
+		throw new Error(
+			`@skinhub/viewer: cannot build an inspect link for ${JSON.stringify(weapon)} — this build has no defindex for it. Pass \`defindex\` on the item, or update the package.`,
+		)
+
+	const slots = toSlots(item.stickers, item.charm) ?? emptySlots()
+	return makeSkinPlacement({
+		defindex,
+		paintindex: item.paintIndex,
+		paintseed: item.seed ?? 0,
+		paintwear: item.float ?? 0,
+		...(item.nameTag ? { nametag: item.nameTag } : {}),
+		// `statTrak: 0` is a counter that has not counted yet. `false` is no module at all.
+		stattrak: item.statTrak !== undefined && item.statTrak !== false,
+		stattrak_count: typeof item.statTrak === 'number' ? item.statTrak : 0,
+		stickers: slots.slice(0, 5) as SkinPlacement['stickers'],
+		keychain: slots[5],
+	} as SkinPlacement)
+}
+
+/**
+ * A viewer item as a masked Steam inspect link — the string a user pastes into the game.
+ *
+ *     <button onClick={() => navigator.clipboard.writeText(toInspectLink(item))}>Copy inspect link</button>
+ *
+ * The inverse of passing `inspectLink` to `<SkinViewer>`, and it round-trips: a link built here decodes
+ * back to the same item through {@link fromInspectLink}.
+ */
+export const toInspectLink = (item: SkinViewerItem): string => buildInspectUrl(toPlacement(item))
+
+/**
+ * A masked inspect link as a viewer item — what `<SkinViewer inspectLink={…} />` does internally,
+ * exposed for a host that wants the fields rather than the picture (to seed an editor from a link, or
+ * to read a float out of one).
+ *
+ * *** RETURNS `null` RATHER THAN THROWING ON A LINK IT CANNOT READ, *** because the input is usually
+ * something a user pasted, and a paste being wrong is an ordinary event rather than an exception.
+ */
+export const fromInspectLink = (link: string): SkinViewerItem | null => {
+	const resolved = resolveSubject({ inspectLink: link })
+	return resolved.item ? toPublicItem(resolved.item) : null
 }

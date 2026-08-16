@@ -428,8 +428,12 @@ Honest list, so none of it is discovered late.
 - **Server-side rendering.** The viewer is WebGL; there is no server-rendered fallback image.
 - **Render to an image.** There is no `capture()` yet. If you need a PNG per item, that is a separate
   service and is not built.
-- **Resolve an inspect link on its own.** `?i=` carries the item's *configuration*. Turning an inspect
-  link's `defindex` into a weapon still needs you to send `?weapon=`/`?paint=`, or use `?hash=`.
+- **Resolve an inspect link on its own.** `?i=` carries the item's *configuration* — float, seed,
+  StatTrak, name plate, stickers, charm — but not which weapon, so a raw-iframe integration still has
+  to send `?weapon=`/`?paint=` (or `?hash=`) alongside it.
+  **This limit is the frame's, not the product's:** `@skinhub/viewer` takes an `inspectLink` prop and
+  handles the whole thing, because it decodes host-side and resolves the `defindex` against its own
+  weapon table before building the URL. If you are in React, you never see this.
 - **Show a sticker, charm, agent or collectible on its own.** The embed renders a weapon or a glove
   today. The rest of our catalogue has pages on our site but is not yet embeddable.
 - **Style anything.** The frame is our document. `gizmocolor` and `gizmoshadow` are the only visual

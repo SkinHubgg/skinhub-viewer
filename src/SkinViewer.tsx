@@ -49,26 +49,31 @@ import type { SkinViewerError, SkinViewerProps, ViewerStatus } from './types.js'
 export const DEFAULT_ORIGIN = 'https://skinhub.gg'
 
 /**
- * *** THE DEVELOPMENT-ONLY WARNINGS BELOW, AND THE THREE THINGS THIS DECLARATION BUYS. ***
+ * *** THE TWO DEVELOPMENT-ONLY WARNINGS BELOW ARE GUARDED BY THE LITERAL `process.env.NODE_ENV`
+ * EXPRESSION, WRITTEN OUT IN FULL AT EACH SITE, AND IT HAS TO STAY THAT WAY. ***
+ *
+ * Every bundler - webpack, Vite, Next, esbuild, Rollup - substitutes that exact member expression and
+ * nothing else. *** ANY INDIRECTION AT ALL DEFEATS IT: *** a helper function, a hoisted `const`, or -
+ * measured, and the reason this note exists - optional chaining. `process?.env?.NODE_ENV` is a
+ * different AST node, no bundler substitutes it, so it stays a live runtime lookup and both warnings
+ * plus their message strings ship inside every customer's production bundle. Written plainly it folds
+ * to a constant at build time and the minifier deletes the blocks outright.
+ *
+ * `test/bundle.test.ts` asserts the literal survives into a real bundle of `dist/`, which is exactly
+ * what caught the optional-chained version of this.
+ *
+ * *** WHICH IS ALSO WHY THERE IS NO `typeof process` GUARD. *** It would let an unbundled browser
+ * import this without a `ReferenceError`, and it would cost the substitution to do it. There is no
+ * such consumer: this is a React component, React's own development build reads the same bare global,
+ * and nobody reaches either without a bundler.
  *
  * `process` IS DECLARED HERE, MODULE-SCOPED, rather than pulled in from `@types/node`.
  * `tsconfig.build.json` compiles with `"types": []` precisely so the published `.d.ts` cannot oblige a
  * browser consumer to install Node's globals in order to typecheck, and a bare `process.env` is a
- * compile error under it. A `declare const` INSIDE A MODULE shadows the ambient one rather than
+ * compile error under it. A `declare const` INSIDE a module shadows the ambient one rather than
  * colliding with it, so `bun run typecheck` - which does load bun's globals - and the build agree.
- *
- * *** THE LITERAL `process.env.NODE_ENV` EXPRESSION IS KEPT, WHICH IS THE POINT. *** Every bundler -
- * webpack, Vite, Next, esbuild, Rollup - substitutes that exact syntax and nothing else. Reached
- * through a helper it stays a runtime lookup, `DEV` stays a live variable, and both warnings plus
- * their message strings ship inside a customer's production bundle. Written like this it folds to
- * `false` at build time and the minifier deletes them.
- *
- * *** AND THE `typeof` GUARD IS FOR THE ONE CASE WITH NO BUNDLER AT ALL: *** an `import` straight off
- * a CDN in a plain browser, where a bare `process` is a `ReferenceError` rather than `undefined` and
- * would take the whole component down with it.
  */
-declare const process: { env?: { NODE_ENV?: string } } | undefined
-const DEV = typeof process === 'undefined' || process?.env?.NODE_ENV !== 'production'
+declare const process: { env: { NODE_ENV?: string } }
 
 /**
  * *** THE TWO KINDS OF FAILURE, AND THEY ARE HELD DIFFERENTLY ON PURPOSE. ***
@@ -226,7 +231,7 @@ export const SkinViewer = (props: SkinViewerProps) => {
 					 * could not read. It is surfaced on the hook and warned about in development rather than
 					 * routed to `onError`, which is for failures they can act on.
 					 */
-					if (event.problems.length > 0 && DEV)
+					if (event.problems.length > 0 && process.env.NODE_ENV !== 'production')
 						console.warn('[@skinhub/viewer] the embed rejected part of the URL this package built:', event.problems)
 					// Anything that changed while the document was still loading goes now.
 					flush()
@@ -330,7 +335,7 @@ export const SkinViewer = (props: SkinViewerProps) => {
 	/* ── THE BOX ──────────────────────────────────────────────────────────────────────────────── */
 	const box = useRef<HTMLDivElement>(null)
 	useEffect(() => {
-		if (!DEV) return
+		if (process.env.NODE_ENV === 'production') return
 		const element = box.current
 		if (!element || (element.offsetWidth > 0 && element.offsetHeight > 0)) return
 		console.warn(

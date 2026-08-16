@@ -275,7 +275,7 @@ export const weaponIdForDefindex = (defindex: number): KnownWeaponId | undefined
  * `'weapon_ak47'` → `7`, or `undefined`.
  *
  * The inverse, for building an inspect link back out of what the viewer is showing — see
- * `toPlacement`. Resolves HUD aliases, so a vanilla Bayonet round-trips to 500 rather than to 0.
+ * {@link toPlacement}, exported from the package root. Resolves HUD aliases, so a vanilla Bayonet round-trips to 500 rather than to 0.
  */
 export const defindexForWeaponId = (weapon: WeaponId): number | undefined =>
 	DEFINDEX_BY_WEAPON_ID[normalizeWeaponId(weapon)]

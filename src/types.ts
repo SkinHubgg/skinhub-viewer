@@ -77,6 +77,11 @@ export type SkinViewerCharm = {
 	 * Displacement from the weapon's charm anchor, in the game's own `offset x/y/z`. Omitted hangs it
 	 * where the weapon hangs it. Values outside the authored charm region are pulled back into it by
 	 * the renderer rather than rejected.
+	 *
+	 * *** `readonly` IS AN INPUT CONVENIENCE AND AN OUTPUT NUISANCE, so it is worth stating: *** a
+	 * mutable `[number, number, number]` assigns to this fine, which is what makes passing one in easy.
+	 * Reading it back off an `onChange` item gives you the readonly type, so moving one axis needs a
+	 * copy - `[...charm.offset]` - rather than an index write.
 	 */
 	offset?: readonly [x: number, y: number, z: number]
 }

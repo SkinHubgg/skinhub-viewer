@@ -45,8 +45,9 @@
 		"build": "rm -rf dist && tsc -p tsconfig.build.json",
 		"test": "bun test",
 		"test:live": "SKINHUB_VIEWER_LIVE=1 bun test test/live.test.ts",
-		"example": "bun run example/serve.ts",
 		"release": "bash scripts/release.sh",
+		"_prepare": "dist/ is gitignored, so a `github:` install arrives with no build. npm runs `prepare` after installing a git dependency (and never from a published tarball, which already has dist), which makes the repo installable directly - a normal thing to try before a package is on npm.",
+		"prepare": "bun run build",
 		"prepublishOnly": "bun run typecheck && bun run build"
 	},
 	"peerDependencies": {

@@ -43,6 +43,12 @@
 export { SkinViewer, DEFAULT_ORIGIN } from './SkinViewer.js'
 export { useSkinViewer } from './useSkinViewer.js'
 
+/**
+ * *** ITEM OUT, LINK BACK. *** A picker is not finished when it can show the item - it is finished
+ * when it can hand you the link. See `item.ts` for the three easy-to-get-wrong facts these encode.
+ */
+export { fromInspectLink, toInspectLink, toPlacement } from './item.js'
+
 export type {
 	MapName,
 	SkinViewerCharm,
