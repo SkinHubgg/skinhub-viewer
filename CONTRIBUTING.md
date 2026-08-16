@@ -12,7 +12,13 @@ One extra tier, opt-in because it needs something the repo does not carry — a 
 ```bash
 bun run test:live                                              # against https://skinhub.gg
 SKINHUB_VIEWER_ORIGIN=http://localhost:3000 bun run test:live  # against a local one
+bun run test:full                                              # both tiers
 ```
+
+`prepare` runs the build. `dist/` is gitignored, so without it a
+`bun add github:SkinHubgg/skinhub-viewer` — a normal thing to try before a package is on npm — installs
+an empty package. npm runs `prepare` after installing a git dependency and never from a published
+tarball, which already carries `dist`.
 
 The build is `tsc` only, no bundler — one emitted file per source file, matching `@skinhub/cdn`.
 `tsconfig.build.json` sets `noEmitOnError`, so a failed build produces no `dist` rather than a stale
