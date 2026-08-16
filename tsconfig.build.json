@@ -1,0 +1,23 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		// tsc emits on error by default. `prepublishOnly` runs this build, so without it a package
+		// with type errors would still produce a dist and still publish.
+		"noEmitOnError": true,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"outDir": "dist",
+		// The published .d.ts must not require a consumer to install bun-types or @types/node. This is
+		// a STRICTER check than `bun run typecheck`, which loads bun's globals — anything in src/ that
+		// reaches for a runtime global has to declare it locally. See the `process` note in
+		// SkinViewer.tsx, which is the only such reference in the package.
+		//
+		// `@types/react` is NOT excluded by this: it arrives through the `import type … from 'react'`
+		// in types.ts, not through the ambient `types` list, and React is a peer dependency so every
+		// consumer already has it.
+		"types": []
+	},
+	"include": ["src"]
+}

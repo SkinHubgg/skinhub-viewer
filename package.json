@@ -1,0 +1,64 @@
+{
+	"name": "@skinhub/viewer",
+	"version": "0.1.0",
+	"description": "React wrapper for the SkinHub CS2 skin viewer embed — props in, postMessage out. No three.js, no renderer, no asset bundle; React is the only peer.",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"bun": "./src/index.ts",
+			"import": "./dist/index.js"
+		},
+		"./protocol": {
+			"types": "./dist/protocol.d.ts",
+			"bun": "./src/protocol.ts",
+			"import": "./dist/protocol.js"
+		},
+		"./weapons": {
+			"types": "./dist/weapons.d.ts",
+			"bun": "./src/weapons.ts",
+			"import": "./dist/weapons.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": ["dist", "src", "README.md", "EMBED.md"],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SkinHubgg/skinhub-viewer.git"
+	},
+	"homepage": "https://github.com/SkinHubgg/skinhub-viewer#readme",
+	"bugs": {
+		"url": "https://github.com/SkinHubgg/skinhub-viewer/issues"
+	},
+	"keywords": ["cs2", "csgo", "counter-strike", "skin", "viewer", "inspect-link", "react", "iframe", "embed"],
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"build": "rm -rf dist && tsc -p tsconfig.build.json",
+		"test": "bun test",
+		"test:live": "SKINHUB_VIEWER_LIVE=1 bun test test/live.test.ts",
+		"example": "bun run example/serve.ts",
+		"release": "bash scripts/release.sh",
+		"prepublishOnly": "bun run typecheck && bun run build"
+	},
+	"peerDependencies": {
+		"react": ">=18"
+	},
+	"dependencies": {
+		"@skinhub/cdn": ">=0.1.3"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19",
+		"react": "^19",
+		"typescript": "^5"
+	}
+}

@@ -1,0 +1,108 @@
+{
+	"channel": "skinhub-viewer",
+	"version": 1,
+	"envelope": [
+		"channel",
+		"from",
+		"v"
+	],
+	"hostVerbs": [
+		"hello",
+		"set"
+	],
+	"eventVerbs": [
+		"change",
+		"editing-slot",
+		"error",
+		"hello",
+		"ready",
+		"resize"
+	],
+	"errorCodes": [
+		"bad-inspect-link",
+		"bad-message",
+		"protocol-mismatch",
+		"render-failed"
+	],
+	"state": [
+		"agent",
+		"editingSlot",
+		"gloves",
+		"interactions",
+		"item",
+		"settings",
+		"view"
+	],
+	"patch": [
+		"agent",
+		"editingSlot",
+		"gloves",
+		"interactions",
+		"item",
+		"settings",
+		"view"
+	],
+	"item": [
+		"float",
+		"legacyModel",
+		"nameTag",
+		"paintIndex",
+		"seed",
+		"statTrak",
+		"stickers",
+		"weaponType"
+	],
+	"views": [
+		"agent",
+		"gun",
+		"hands"
+	],
+	"agent": [
+		"id",
+		"pose"
+	],
+	"gloves": [
+		"float",
+		"paintIndex",
+		"seed",
+		"type"
+	],
+	"settingsGroups": [
+		"camera",
+		"environment",
+		"overlays",
+		"quality"
+	],
+	"camera": [
+		"defaultZoom",
+		"fov"
+	],
+	"quality": [
+		"antialias",
+		"bloom",
+		"bloomSpill",
+		"renderScale",
+		"shadows"
+	],
+	"environment": [
+		"background",
+		"map",
+		"rain",
+		"timeOfDay"
+	],
+	"overlays": [
+		"charmGizmo",
+		"gizmoStyle",
+		"stickerGizmo"
+	],
+	"gizmoStyle": [
+		"color",
+		"shadowColor"
+	],
+	"interactions": [
+		"dragCharm",
+		"dragStickers",
+		"orbit",
+		"zoom"
+	]
+}
