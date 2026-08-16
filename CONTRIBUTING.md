@@ -40,6 +40,18 @@ ran it and looked at a page, so it could only fail while somebody was watching. 
 [quick-start repo](https://github.com/SkinHubgg/skinhub-quick-start) is the example anybody reads now;
 this is the part of `example/` that was a test.
 
+## What is not covered by tests
+
+`SkinViewer.tsx` has no component tests — there is no DOM harness in this repo, so nothing exercises
+the React effects: the message listener, the flush-on-connect, and the connection deadline that
+reports `unreachable`. Everything those effects *call* is pure and is covered (`state.ts`, `item.ts`,
+`protocol.ts`), and `test/bundle.test.ts` proves the built component imports and bundles. The wiring
+between them is checked by hand.
+
+Adding `happy-dom` + `react-dom` and a render harness is the obvious next test investment, and the
+connection deadline is the first thing it should cover: it is the only logic here whose failure mode
+is silent (a timer that never fires looks exactly like a viewer that is still loading).
+
 ## How the wire is kept in step with the embed
 
 The other half of the protocol lives in the SkinHub app, which is a private repository — it carries the

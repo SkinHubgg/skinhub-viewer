@@ -434,6 +434,24 @@ export type SkinViewerErrorCode =
 	/** Neither `inspectLink` nor `item` arrived at runtime. See {@link SkinViewerProps}. */
 	| 'no-item'
 	/**
+	 * *** THE EMBED NEVER ANSWERED. *** Nothing at {@link SkinViewerProps.origin} announced itself
+	 * within {@link CONNECT_TIMEOUT_MS}, so there is no conversation and nothing has rendered.
+	 *
+	 * *** IT EXISTS BECAUSE THE BROWSER WILL NOT TELL US OTHERWISE. *** A cross-origin `<iframe>` fires
+	 * `load` for a 404, a 500 and a corporate block page exactly as it does for the real thing, fires no
+	 * `error` for any of them, and its document cannot be read. Without a timer the component would sit
+	 * at `'connecting'` for ever showing an empty box - which is the single worst failure an integrator
+	 * can be handed, because there is nothing at all to search for.
+	 *
+	 * The likely causes, in the order they actually happen: a network or corporate proxy blocking the
+	 * origin, an `origin` prop pointing somewhere that does not serve `/frame`, or a
+	 * `Content-Security-Policy` on the HOST page whose `frame-src` does not allow it.
+	 *
+	 * *** NOT PERMANENT. *** The iframe stays mounted underneath your `fallback`, so a slow connection
+	 * that arrives late clears this by itself. `reload()` retries deliberately.
+	 */
+	| 'unreachable'
+	/**
 	 * A field was rejected on the way in and DROPPED, naming its path. Not fatal: the field keeps its
 	 * previous value and the rest of the update is applied. Nothing is ever coerced - `float: '0.3'` is
 	 * rejected rather than parsed.

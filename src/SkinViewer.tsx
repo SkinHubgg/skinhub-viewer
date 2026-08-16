@@ -87,7 +87,22 @@ declare const process: { env: { NODE_ENV?: string } }
  * over. That distinction is the difference between a viewer that recovers when a query resolves and
  * one an integrator has to remount.
  */
-const isFatal = (code: SkinViewerError['code']) => code === 'protocol-mismatch' || code === 'render-failed'
+const isFatal = (code: SkinViewerError['code']) =>
+	code === 'protocol-mismatch' || code === 'render-failed' || code === 'unreachable'
+
+/**
+ * *** HOW LONG THE EMBED HAS TO ANNOUNCE ITSELF BEFORE WE CALL IT UNREACHABLE. ***
+ *
+ * The frame posts `hello` as soon as its script runs, so this is a document fetch plus a parse - a few
+ * hundred milliseconds on a warm connection. Fifteen seconds is therefore not a performance budget, it
+ * is the point past which "still loading" stops being a credible explanation for an empty box.
+ *
+ * *** DELIBERATELY GENEROUS, BECAUSE A FALSE POSITIVE HERE IS SELF-HEALING AND A FALSE NEGATIVE IS
+ * NOT. *** The iframe stays mounted under the `fallback`, so a slow connection that lands at sixteen
+ * seconds clears the error and renders. A timer too short would flash an error at people on bad
+ * networks; no timer at all leaves them with a blank rectangle and nothing to search for.
+ */
+export const CONNECT_TIMEOUT_MS = 15_000
 
 export const SkinViewer = (props: SkinViewerProps) => {
 	const { className, style, title = 'SkinHub viewer', loading, fallback, handle } = props
@@ -131,6 +146,8 @@ export const SkinViewer = (props: SkinViewerProps) => {
 	/** No `set` may be sent before the frame has announced itself; until then it has no listener. */
 	const connected = useRef(false)
 	const frame = useRef<HTMLIFrameElement>(null)
+	/** Cancelled the moment the frame speaks; see {@link CONNECT_TIMEOUT_MS}. */
+	const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	const [status, setStatus] = useState<ViewerStatus>('connecting')
 	const [error, setError] = useState<SkinViewerError | null>(null)
@@ -196,6 +213,32 @@ export const SkinViewer = (props: SkinViewerProps) => {
 
 	useEffect(flush)
 
+	/* ── THE CONNECTION DEADLINE ──────────────────────────────────────────────────────────────── */
+	/**
+	 * *** THE ONLY THING STANDING BETWEEN AN UNREACHABLE ORIGIN AND A SILENT EMPTY BOX. ***
+	 *
+	 * Keyed on `boot.nonce`, so `reload()` genuinely retries rather than inheriting a spent deadline.
+	 * See {@link CONNECT_TIMEOUT_MS} and the `unreachable` code for why the browser gives us nothing
+	 * else to go on.
+	 */
+	useEffect(() => {
+		connectTimer.current = setTimeout(() => {
+			connectTimer.current = null
+			if (connected.current) return
+			report({
+				code: 'unreachable',
+				message: `The SkinHub viewer embed at ${boot.src} did not respond within ${Math.round(
+					CONNECT_TIMEOUT_MS / 1000,
+				)}s. Nothing has rendered. Check that the origin is reachable from this browser, that it serves /frame, and that your page's Content-Security-Policy allows framing it (frame-src).`,
+			})
+		}, CONNECT_TIMEOUT_MS)
+
+		return () => {
+			if (connectTimer.current !== null) clearTimeout(connectTimer.current)
+			connectTimer.current = null
+		}
+	}, [boot.nonce, boot.src, report])
+
 	/* ── THE CHANNEL ──────────────────────────────────────────────────────────────────────────── */
 	useEffect(() => {
 		const onMessage = (event: MessageEvent) => {
@@ -223,7 +266,19 @@ export const SkinViewer = (props: SkinViewerProps) => {
 			switch (event.type) {
 				case 'hello': {
 					connected.current = true
-					setStatus(current => (current === 'connecting' ? 'loading' : current))
+					if (connectTimer.current !== null) {
+						clearTimeout(connectTimer.current)
+						connectTimer.current = null
+					}
+					/*
+					 * *** A LATE ARRIVAL UNDOES `unreachable`, AND ONLY THAT ONE. *** The iframe is never
+					 * unmounted - the `fallback` is drawn OVER it - so a connection that lands after the timer
+					 * is a working viewer sitting under an error card, which is worse than the blank box the
+					 * timer was added to prevent. Cleared here rather than in the timer because this is the
+					 * only place we learn the embed is really there.
+					 */
+					setError(current => (current?.code === 'unreachable' ? null : current))
+					setStatus(current => (current === 'connecting' || current === 'error' ? 'loading' : current))
 					setProblems(event.problems)
 					/*
 					 * A PROBLEM IN `hello` IS OUR BUG AND NOT THE INTEGRATOR'S. They passed props; this

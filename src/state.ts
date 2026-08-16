@@ -73,6 +73,9 @@ const HELP_FOR: Record<SkinViewerError['code'], HelpReason | null> = {
 	'render-failed': null,
 	'bad-message': null,
 	'protocol-mismatch': null,
+	// There is no help card for an embed that never loaded: the card is drawn BY the frame, and the
+	// frame is the thing that did not arrive.
+	unreachable: null,
 }
 
 /**

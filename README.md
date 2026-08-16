@@ -16,11 +16,7 @@ import { SkinViewer } from '@skinhub/viewer'
 
 export default function Page() {
   return (
-    <SkinViewer
-      item={{ weapon: 'weapon_ak47', paintIndex: 44, float: 0.27 }}
-      origin="http://localhost:3000"
-      style={{ width: 640, height: 420 }}
-    />
+    <SkinViewer item={{ weapon: 'weapon_ak47', paintIndex: 44, float: 0.27 }} style={{ width: 640, height: 420 }} />
   )
 }
 ```
@@ -32,10 +28,7 @@ out of it:
 <SkinViewer inspectLink={item.inspectLink} style={{ width: 640, height: 420 }} />
 ```
 
-> **`origin` is required for now.** The default is `https://skinhub.gg`, which is not deployed yet, so
-> point it at your own instance — the embed is served at `/frame` on whatever origin you give it.
-
-Two more things worth knowing up front:
+Two things worth knowing up front:
 
 - **Give it a size.** It fills its container and has no intrinsic size; at 0 px you see nothing.
 - **No `key` derived from the item.** `key={item.weapon}` remounts the iframe on every change and turns
@@ -57,7 +50,7 @@ One of `item` or `inspectLink` is required. Everything else is optional.
 | `interactions` | `{ orbit?, zoom?, dragStickers?, dragCharm? }` | orbit + zoom on | what the user may do |
 | `editingSlot` | `number` | `-1` | which sticker slot is open; `5` is the charm |
 | `onReady` | `() => void` | — | stopped loading — **a level, not an edge**: it fires again after every weapon or view change |
-| `onError` | `(error) => void` | — | `no-item`, `bad-inspect-link`, `unknown-weapon`, `render-failed`, `protocol-mismatch`, `bad-message` |
+| `onError` | `(error) => void` | — | `no-item`, `bad-inspect-link`, `unknown-weapon`, `unreachable`, `render-failed`, `protocol-mismatch`, `bad-message` |
 | `onChange` | `(item) => void` | — | the user dragged a sticker or the charm — **carries ids, not names**, see below |
 | `onResize` | `({ width, height, dpr }) => void` | — | the canvas box changed |
 | `onEditingSlotChange` | `(slot) => void` | — | |
@@ -102,6 +95,17 @@ onChange={next =>
 }
 ```
 
+### Pointing at your own instance
+
+`origin` defaults to `https://skinhub.gg`. Override it to run against a mirror, a proxy, or a local
+instance while developing:
+
+```tsx
+<SkinViewer item={item} origin="http://localhost:3000" />
+```
+
+It is read once, at mount — it is the one prop that could only be applied by reloading the frame.
+
 ## useSkinViewer()
 
 ```tsx
@@ -123,8 +127,10 @@ browser before your code sees it — it surfaces as a CORS failure rather than a
 even catch it. Call `@skinhub/cdn` from your **server** (a route handler, `getServerSideProps`, an RSC)
 and pass the rows down. The files are 4–6 MB each, so you want them server-side regardless.
 
-**Nothing renders and there is no error.** Either the container is 0 px in one dimension (the component
-warns about this in development), or `origin` points somewhere that does not serve `/frame`.
+**Nothing renders.** If the container is 0 px in one dimension you get an empty box; the component
+warns about that in development. Otherwise `onError` reports `unreachable` after 15 seconds, naming the
+URL it could not reach — that means the embed never answered, so check the origin is reachable from
+this browser and that your page's `Content-Security-Policy` allows framing it (`frame-src`).
 
 **`onReady` fired but the picture is still covered.** `onReady` means "stopped loading" for the current
 identity, and it fires again after every weapon or view change. Treat it as a level, not an edge.

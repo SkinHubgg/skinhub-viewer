@@ -144,6 +144,20 @@ describe('the wire is frozen', () => {
 	})
 
 	/**
+	 * *** `unreachable` IS THE PACKAGE'S OWN WORD AND MUST NEVER REACH THE WIRE. ***
+	 *
+	 * It means "nothing at the origin answered", which is a conclusion only the HOST can draw - the
+	 * frame cannot report that it failed to load, because a frame that failed to load reports nothing.
+	 * Adding it to {@link FrameErrorCode} would therefore create a code the frame can never legitimately
+	 * send and the host would have to treat as impossible, which is how a validator grows a branch
+	 * nobody tests.
+	 */
+	test('the host-only error codes are not on the wire', () => {
+		for (const hostOnly of ['unreachable', 'no-item', 'unknown-weapon'])
+			expect({ hostOnly, onTheWire: snapshot.errorCodes.includes(hostOnly) }).toEqual({ hostOnly, onTheWire: false })
+	})
+
+	/**
 	 * A NEGATIVE CONTROL FOR THE FREEZE ITSELF. `toEqual` on two objects built by the same expression
 	 * is a test that can be made vacuous by a refactor - point both sides at the same value and it
 	 * passes forever. This asserts the comparison can still fail.
