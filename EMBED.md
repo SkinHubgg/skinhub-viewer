@@ -522,16 +522,18 @@ Honest list, so none of it is discovered late.
   and remove it on `ready`.
 - **Click-through.** See §9.
 - **Server-side rendering.** The viewer is WebGL; there is no server-rendered fallback image.
-- **Render to an image.** There is no `capture()` yet. If you need a PNG per item, that is a separate
-  service and is not built.
-- **Resolve an inspect link on its own.** `?i=` carries the item's *configuration* — float, seed,
-  StatTrak, name plate, stickers, charm — but not which weapon, so a raw-iframe integration still has
+- **Render to an image.** There is no `capture()`: the canvas runs without a preserved drawing buffer,
+  so a read from outside the render loop comes back blank. A PNG per item wants a render with no
+  browser tab open anyway, and that is a separate service and is not built.
+- **Resolve an inspect link on its own.** `?i=` carries the item's *configuration* - float, seed,
+  StatTrak, name plate, stickers, charm - but not which weapon, so a raw-iframe integration still has
   to send `?weapon=`/`?paint=` (or `?hash=`) alongside it.
   **This limit is the frame's, not the product's:** `@skinhub/viewer` takes an `inspectLink` prop and
   handles the whole thing, because it decodes host-side and resolves the `defindex` against its own
   weapon table before building the URL. If you are in React, you never see this.
-- **Show a sticker, charm, agent or collectible on its own.** The embed renders a weapon or a glove
-  today. The rest of our catalogue has pages on our site but is not yet embeddable.
+- **Draw two subjects at once.** One frame shows one thing - a weapon or glove, a sticker, a charm, a
+  collectible, or an operator (§2). An operator shown as the subject holds no weapon, and the four
+  standalone subjects ignore `?view=`, `?i=`, `?float=`, `?slot=` and the sticker slots.
 - **Style anything.** The frame is our document. `gizmocolor` and `gizmoshadow` are the only visual
   hooks.
 - **Two viewers cheaply.** Each frame is its own WebGL context. If you need a grid of them, drop
