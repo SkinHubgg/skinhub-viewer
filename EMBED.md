@@ -8,6 +8,11 @@ no account, and no signup. Two ways to drive it:
 | **The URL** | an `<iframe src>` | the complete initial picture: item, float, seed, stickers, charm, view, agent, gloves, lighting, quality |
 | **`postMessage`** | ~10 lines of JavaScript | live updates on top of that, plus `ready` / `error` / `change` events |
 
+**Five kinds of item are inspectable**, each with its own parameter: a weapon or glove
+(`?weapon=`+`?paint=`), a sticker (`?sticker=`), a charm (`?charm=`), a collectible - pin, coin, medal
+or trophy - (`?collectible=`), and an operator (`?subject=agent&agent=`). See
+[the other four subjects](#the-other-four-subjects---a-sticker-a-charm-a-collectible-an-operator).
+
 **The URL alone is a supported, first-class integration.** If your stack is PHP, Rails, Laravel, plain
 HTML or anything else that renders on a server, you can interpolate an item into an `src` attribute
 and be finished. Everything on this page above the "Live updates" heading works with JavaScript
@@ -78,6 +83,74 @@ candidates. **If you know the phase, send `?paint=` as well; it wins.**
 Loads the legacy mesh variant. Most finishes declare this themselves and it is ignored; pass it for
 those that do not, from your catalogue's `legacy_model` column. It changes which textures apply, so
 the wrong value is the wrong picture rather than a detail.
+
+### The other four subjects - a sticker, a charm, a collectible, an operator
+
+A weapon is one of **five** things the viewer draws, and a glove is not one of the other four - a glove
+is a `?weapon=` id like any other. Each of the remaining four is named by its own parameter, and naming
+it is the whole URL:
+
+```
+?sticker=37                    one sticker, on nothing - the real holo/foil/glitter shader
+?charm=5                       one charm, off the gun
+?collectible=874               one pin, coin, medal or trophy
+?subject=agent&agent=5036      one operator, alone
+```
+
+| parameter | meaning | default |
+|---|---|---|
+| `sticker` | a `stickers.json` id. **Implies `subject=sticker`** | - |
+| `wear` | that sticker's scratch, `0` (mint) to `1` (scraped off) | `0` |
+| `charm` | a `keychains.json` id. **Implies `subject=charm`** | - |
+| `pattern` | the charm's template - a hue/saturation/brightness adjust on its own albedo, not a different model | `0` |
+| `collectible` | a `collectibles.json` item definition index. **Implies `subject=collectible`** | - |
+| `subject` | `weapon`, `sticker`, `charm`, `collectible`, `agent` - read last, so it always wins | `weapon` |
+
+**`?pattern=` and not `?seed=`,** because `seed` on this URL is already the weapon's paint seed.
+
+**Two subjects in one URL:** the last one named wins, reading `sticker` → `charm` → `collectible` →
+`subject`. There is no reason to send two; the rule exists only so that a URL which does still means
+something.
+
+In `@skinhub/viewer` each of the four is its own prop, and exactly one may be passed:
+
+```jsx
+<SkinViewer sticker={{ id: 37, wear: 0.2 }} />
+<SkinViewer charm={{ id: 5, pattern: 900 }} />
+<SkinViewer collectible={{ id: 874 }} />
+<SkinViewer operator={{ id: 5036 }} />
+```
+
+#### The operator is the one that needs `?subject=`
+
+`?agent=5036` has always meant **which operator**, and it keeps meaning exactly that. What changes is
+what is on screen:
+
+| | what you see |
+|---|---|
+| `?weapon=weapon_ak47&paint=1449&view=agent&agent=5036` | the operator **holding your weapon** |
+| `?subject=agent&agent=5036` | the operator **alone**, no weapon drawn |
+
+If your database row is an agent, you want the second: the first would put a rifle nobody asked for
+into the picture. In the React package these are the `agent` prop (a modifier on the weapon subject)
+and the `operator` prop (the person as the subject) - two words because they are two pictures.
+
+`?pose=` works in both - 285 main-menu clips across 44 weapon families - and with no weapon on screen
+it defaults to that team's own knife idle rather than matching a gun. The weapon each clip is
+*holding* is never drawn, so `Look at gun` is an operator studying an empty hand.
+
+#### What each subject does **not** have
+
+A collectible has no float, no seed, no wear, no template and no pose - two copies of the same medal
+are the same object, and `?collectible=874` is the entire configuration. None of the four takes
+`?view=`, `?i=`, `?float=`, `?slot=` or the sticker slots: those are all statements about a weapon, and
+`?view=` in particular answers "what is the weapon being shown *on*", which is not a question a sticker
+has. They are ignored rather than rejected, and everything in §5 (lighting, background, quality, orbit,
+zoom) applies to all five subjects identically.
+
+An id of `0`, or one your catalogue does not have, renders **nothing** - deliberately. `sticker_id: 0`
+is how the game itself says "empty slot", and drawing our default AK-47 for it would look exactly like
+a successful render of the wrong item.
 
 ---
 
@@ -248,7 +321,11 @@ Every message in both directions carries these three fields:
 
 ```js
 set({
-  item: { weaponType, paintIndex, legacyModel, float, seed, statTrak, nameTag, stickers },
+  subject: 'weapon' | 'sticker' | 'charm' | 'collectible' | 'agent',
+  item:        { weaponType, paintIndex, legacyModel, float, seed, statTrak, nameTag, stickers },
+  sticker:     { id, wear },
+  charm:       { id, pattern },
+  collectible: { id },
   view: 'gun' | 'hands' | 'agent',
   agent: { id, pose },
   gloves: { type, paintIndex, float, seed } | null,
@@ -267,6 +344,13 @@ set({
 keeps your weapon, your stickers and your name plate. `set({ settings: { quality: { bloom: 0 } } })`
 keeps the camera and the environment. This is not just convenience - see
 [cheap vs reload](#cheap-vs-reload).
+
+**All five subjects are held at once, and only `subject` switches between them.**
+`set({ sticker: { id: 37 } })` *configures* the sticker; `set({ subject: 'sticker' })` *shows* it. Send
+both to do both. The split is what lets you pre-load the pin a visitor is about to open without
+disturbing the rifle on screen, and what stops a host that restates its whole state on every render
+from flipping subject whenever two groups happen to be present. Switching back is one field -
+`set({ subject: 'weapon' })` - and the weapon is exactly where you left it.
 
 **`null` is a value, not an absence**, wherever it means something: `nameTag: null` is no plate,
 `statTrak: false` is no counter, `gloves: null` is the wearer's own default pair, `agent.pose: null` is
@@ -305,6 +389,18 @@ This is the part that decides whether the embed feels like a component or like a
 |---|---|
 | `float`, `seed`, `statTrak`, `nameTag`, stickers, the charm, **anything under `settings` or `interactions`** | **updates in place.** No loading card, no blank frame, no dropped frames. Drive it from a slider at 60 Hz |
 | `item.weaponType`, `item.paintIndex`, `item.legacyModel`, `view`, and `agent.id` in the `agent` view | **reloads.** The viewer covers itself until the new model has actually drawn, and shows nothing rather than something half-built |
+
+The same split, for the other four subjects:
+
+| subject | reloads | updates in place |
+|---|---|---|
+| `sticker` | `sticker.id` | `sticker.wear` |
+| `charm` | `charm.id` | `charm.pattern` |
+| `collectible` | `collectible.id` | *nothing - there is no other field* |
+| `agent` | `agent.id` | `agent.pose` |
+
+**Changing `subject` always reloads**, in every direction: a weapon and a pin are drawn by different
+renderers, so the picture is rebuilt from nothing.
 
 Measured across the frame boundary: 140 `set` messages carrying a moving float, plus seed, StatTrak,
 a name plate, a bloom change and a map change, produced **zero covered frames** over 93 drawn frames

@@ -13,6 +13,7 @@
 
 import { describe, expect, test } from 'bun:test'
 
+import type { FrameSubjectKind } from '../src/protocol.js'
 import { coversCanvas, diffState, frameUrl, IDENTITY_FIELDS, resolveState } from '../src/state.js'
 import type { SkinViewerProps } from '../src/types.js'
 
@@ -198,17 +199,20 @@ describe('diffState', () => {
  * ═══════════════════════════════════════════════════════════════════════════════════════════ */
 
 describe('coversCanvas', () => {
+	/** The second argument is the state the patch lands ON - the subject decides two of the answers. */
+	const on = (view: 'gun' | 'hands' | 'agent', subject: FrameSubjectKind = 'weapon') => ({ view, subject })
+
 	test('identity fields cover, configuration fields do not', () => {
 		expect(IDENTITY_FIELDS).toEqual(['weaponType', 'paintIndex', 'legacyModel'])
 		for (const field of IDENTITY_FIELDS)
-			expect(coversCanvas({ item: { [field]: field === 'legacyModel' ? true : 1 } }, 'gun')).toBe(true)
+			expect(coversCanvas({ item: { [field]: field === 'legacyModel' ? true : 1 } }, on('gun'))).toBe(true)
 
 		for (const patch of [{ item: { float: 0.3 } }, { item: { seed: 5 } }, { item: { nameTag: 'x' } }, {}])
-			expect(coversCanvas(patch, 'gun')).toBe(false)
+			expect(coversCanvas(patch, on('gun'))).toBe(false)
 	})
 
 	test('a view change always covers', () => {
-		expect(coversCanvas({ view: 'hands' }, 'gun')).toBe(true)
+		expect(coversCanvas({ view: 'hands' }, on('gun'))).toBe(true)
 	})
 
 	/**
@@ -218,8 +222,97 @@ describe('coversCanvas', () => {
 	 * that is already correct.
 	 */
 	test('the operator covers in the agent view and not in hands', () => {
-		expect(coversCanvas({ agent: { id: 5036 } }, 'agent')).toBe(true)
-		expect(coversCanvas({ agent: { id: 5036 } }, 'hands')).toBe(false)
-		expect(coversCanvas({ agent: { pose: 'idle' } }, 'agent')).toBe(false)
+		expect(coversCanvas({ agent: { id: 5036 } }, on('agent'))).toBe(true)
+		expect(coversCanvas({ agent: { id: 5036 } }, on('hands'))).toBe(false)
+		expect(coversCanvas({ agent: { pose: 'idle' } }, on('agent'))).toBe(false)
+	})
+
+	/**
+	 * *** AND THE SAME SPLIT ON THE OTHER FOUR SUBJECTS: THE ID COVERS, THE SECOND FIELD DOES NOT. ***
+	 *
+	 * This is the package's half of the owner's cheap-update requirement for the subjects added on
+	 * 2026-08-16. The frame's half is measured in a browser - zero covered frames across a `wear` drag -
+	 * and this is what stops the package raising a consumer's `loading` slot over a picture the frame
+	 * never covered, which from the outside would be indistinguishable from a reload.
+	 */
+	test('a standalone id covers and its configuration field does not', () => {
+		expect(coversCanvas({ sticker: { id: 37 } }, on('gun', 'sticker'))).toBe(true)
+		expect(coversCanvas({ sticker: { wear: 0.4 } }, on('gun', 'sticker'))).toBe(false)
+		expect(coversCanvas({ charm: { id: 5 } }, on('gun', 'charm'))).toBe(true)
+		expect(coversCanvas({ charm: { pattern: 900 } }, on('gun', 'charm'))).toBe(false)
+		// A collectible has no second field at all, so the id is the only thing that can be patched.
+		expect(coversCanvas({ collectible: { id: 874 } }, on('gun', 'collectible'))).toBe(true)
+	})
+
+	test('the operator covers when they are the subject, and the pose still does not', () => {
+		expect(coversCanvas({ agent: { id: 5036 } }, on('gun', 'agent'))).toBe(true)
+		expect(coversCanvas({ agent: { pose: 't_main_menu_knife_idle' } }, on('gun', 'agent'))).toBe(false)
+	})
+
+	/** A different KIND of subject is a different renderer, so it covers in every direction. */
+	test('a subject change always covers', () => {
+		expect(coversCanvas({ subject: 'sticker' }, on('gun', 'sticker'))).toBe(true)
+		expect(coversCanvas({ subject: 'weapon' }, on('gun', 'weapon'))).toBe(true)
+	})
+})
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════
+ * THE OTHER FOUR SUBJECTS, THROUGH THE URL AND THE DIFF
+ * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+describe('the standalone subjects', () => {
+	const src = (props: Parameters<typeof resolveState>[0]) => {
+		const { src } = frameUrl('https://skinhub.gg', resolveState(props))
+		return new URL(src).searchParams
+	}
+
+	test('each names itself in the URL, and the weapon still says nothing', () => {
+		expect(src({ sticker: { id: 37, wear: 0.4 } }).get('subject')).toBe('sticker')
+		expect(src({ sticker: { id: 37, wear: 0.4 } }).get('sticker')).toBe('37')
+		expect(src({ sticker: { id: 37, wear: 0.4 } }).get('wear')).toBe('0.4')
+
+		expect(src({ charm: { id: 5, pattern: 900 } }).get('subject')).toBe('charm')
+		expect(src({ charm: { id: 5, pattern: 900 } }).get('pattern')).toBe('900')
+
+		expect(src({ collectible: { id: 874 } }).get('subject')).toBe('collectible')
+		expect(src({ collectible: { id: 874 } }).get('collectible')).toBe('874')
+
+		// `operator` becomes `subject=agent` plus the `agent` id the weapon views already use.
+		expect(src({ operator: { id: 5036 } }).get('subject')).toBe('agent')
+		expect(src({ operator: { id: 5036 } }).get('agent')).toBe('5036')
+
+		// OUR default must never be frozen into a customer's src - see `frameUrl`.
+		expect(src({ item: { weapon: 'weapon_ak47', paintIndex: 1449 } }).get('subject')).toBeNull()
+	})
+
+	test('an unset second field is left out of the URL entirely', () => {
+		expect(src({ sticker: { id: 37 } }).has('wear')).toBe(false)
+		expect(src({ charm: { id: 5 } }).has('pattern')).toBe(false)
+	})
+
+	test('a cheap field diffs on its own and the id is not restated', () => {
+		const before = resolveState({ sticker: { id: 37, wear: 0.1 } })
+		const after = resolveState({ sticker: { id: 37, wear: 0.2 } })
+		const patch = diffState(before, after)
+		// The ID IS NOT IN THE PATCH - see `diffGroup`. That is the whole difference between a cheap
+		// update and one that raises the caller's loading slot.
+		expect(patch?.sticker).toEqual({ wear: 0.2 })
+		expect(patch?.subject).toBeUndefined()
+		// The whole point: this must not raise the caller's loading slot.
+		expect(coversCanvas(patch ?? {}, after)).toBe(false)
+	})
+
+	test('switching subject sends the subject, and switching back costs one field', () => {
+		const weapon = resolveState({ item: { weapon: 'weapon_ak47', paintIndex: 1449 } })
+		const pin = resolveState({ collectible: { id: 874 } })
+		expect(diffState(weapon, pin)?.subject).toBe('collectible')
+		expect(diffState(pin, weapon)?.subject).toBe('weapon')
+	})
+
+	/** An id that is not a positive integer is the `no-item` case, not a zero passed through. */
+	test('a zero id is no-item rather than an empty slot', () => {
+		const state = resolveState({ sticker: { id: 0 } })
+		expect(state.subjectError?.code).toBe('no-item')
+		expect(state.help).toBe('no-item')
 	})
 })

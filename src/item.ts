@@ -33,7 +33,14 @@
 import { buildInspectUrl, readInspectUrl } from '@skinhub/cdn/inspect'
 import { emptyKeychain, emptySticker, makeSkinPlacement, type SkinPlacement } from '@skinhub/cdn/placement'
 
-import type { FrameItem, PlacementSlots } from './protocol.js'
+import type {
+	FrameCharm,
+	FrameCollectible,
+	FrameItem,
+	FrameSticker,
+	FrameSubjectKind,
+	PlacementSlots,
+} from './protocol.js'
 import type { SkinViewerCharm, SkinViewerError, SkinViewerItem, SkinViewerSticker, ViewerSubject } from './types.js'
 import { defindexForWeaponId, normalizeWeaponId, weaponIdForDefindex } from './weapons.js'
 
@@ -182,6 +189,70 @@ const fromPlacement = (placement: SkinPlacement, weaponType: string): FrameItem 
  * build the frame's URL in a `useState` initialiser and have the FIRST PAINT be the integrator's item
  * rather than ours swapped a tick later.
  */
+/**
+ * *** THE OTHER FOUR SUBJECTS, RESOLVED BEFORE THE WEAPON IS EVEN LOOKED FOR. ***
+ *
+ * Returns null when the props name none of them, which is what sends {@link resolveSubject} on to the
+ * `inspectLink` / `item` pair below. The ORDER is the arm order in `types.ts` and it only matters for
+ * props that bypassed the types (plain JavaScript, an `any`), where naming two subjects has to mean
+ * SOMETHING - it means the first one on this list.
+ *
+ * *** AN ID THAT IS NOT A POSITIVE INTEGER IS `no-item`, NOT A ZERO. *** `sticker_id: 0` IS the empty
+ * slot throughout the renderer, so passing it through would ask the frame to draw an item that by
+ * definition does not exist; the instruction card plus an `onError` is a far better answer than an
+ * empty canvas. This is the same "data had not arrived yet" case the `no-item` code exists for.
+ */
+export type ResolvedStandalone = {
+	subject: Exclude<FrameSubjectKind, 'weapon'>
+	sticker?: FrameSticker
+	charm?: FrameCharm
+	collectible?: FrameCollectible
+	agent?: { id: number; pose?: string | null }
+	error: SkinViewerError | null
+}
+
+export const resolveStandalone = (props: Partial<ViewerSubject>): ResolvedStandalone | null => {
+	const bad = (subject: ResolvedStandalone['subject'], prop: string, id: unknown): ResolvedStandalone => ({
+		subject,
+		error: {
+			code: 'no-item',
+			message: `\`${prop}.id\` must be a positive integer, got ${JSON.stringify(id)}. In TypeScript that is a compile error, so this is JavaScript, an \`any\`, or data that had not arrived yet.`,
+		},
+	})
+	const ok = (id: unknown) => typeof id === 'number' && Number.isSafeInteger(id) && id > 0
+
+	if (props.sticker)
+		return ok(props.sticker.id)
+			? { subject: 'sticker', sticker: dropUndefined({ id: props.sticker.id, wear: props.sticker.wear }), error: null }
+			: bad('sticker', 'sticker', props.sticker.id)
+
+	if (props.charm)
+		return ok(props.charm.id)
+			? { subject: 'charm', charm: dropUndefined({ id: props.charm.id, pattern: props.charm.pattern }), error: null }
+			: bad('charm', 'charm', props.charm.id)
+
+	if (props.collectible)
+		return ok(props.collectible.id)
+			? { subject: 'collectible', collectible: { id: props.collectible.id }, error: null }
+			: bad('collectible', 'collectible', props.collectible.id)
+
+	/* `operator` BECOMES `agent` ON THE WIRE - see `FrameSubjectKind`. The pose rides in the same group
+	   the weapon views use, because it is the same question (which performance) asked of the same row. */
+	if (props.operator)
+		return ok(props.operator.id)
+			? { subject: 'agent', agent: dropUndefined({ id: props.operator.id, pose: props.operator.pose }), error: null }
+			: bad('agent', 'operator', props.operator.id)
+
+	return null
+}
+
+/** Drops keys the caller did not set, so "say nothing" survives into the URL and into the diff. */
+const dropUndefined = <T extends object>(source: T): T => {
+	const out = {} as T
+	for (const key of Object.keys(source) as (keyof T)[]) if (source[key] !== undefined) out[key] = source[key]
+	return out
+}
+
 export const resolveSubject = (subject: Partial<ViewerSubject>): ResolvedSubject => {
 	const fail = (code: SkinViewerError['code'], message: string): ResolvedSubject => ({
 		item: null,

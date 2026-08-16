@@ -69,8 +69,38 @@ const wire = () => ({
 	eventVerbs: membersOf<FrameEvent['type']>()(['hello', 'ready', 'error', 'change', 'editing-slot', 'resize']),
 	errorCodes: membersOf<FrameErrorCode>()(['render-failed', 'bad-inspect-link', 'bad-message', 'protocol-mismatch']),
 
-	state: keysOf<FrameState>()(['item', 'view', 'agent', 'gloves', 'settings', 'interactions', 'editingSlot']),
-	patch: keysOf<FramePatch>()(['item', 'view', 'agent', 'gloves', 'settings', 'interactions', 'editingSlot']),
+	state: keysOf<FrameState>()([
+		'subject',
+		'item',
+		'sticker',
+		'charm',
+		'collectible',
+		'view',
+		'agent',
+		'gloves',
+		'settings',
+		'interactions',
+		'editingSlot',
+	]),
+	patch: keysOf<FramePatch>()([
+		'subject',
+		'item',
+		'sticker',
+		'charm',
+		'collectible',
+		'view',
+		'agent',
+		'gloves',
+		'settings',
+		'interactions',
+		'editingSlot',
+	]),
+
+	/* The five things the viewer can show. `weapon` covers gloves too - a glove is a `weaponType`. */
+	subjects: membersOf<FrameState['subject']>()(['weapon', 'sticker', 'charm', 'collectible', 'agent']),
+	sticker: keysOf<FrameState['sticker']>()(['id', 'wear']),
+	charm: keysOf<FrameState['charm']>()(['id', 'pattern']),
+	collectible: keysOf<FrameState['collectible']>()(['id']),
 
 	item: keysOf<FrameItem>()([
 		'weaponType',

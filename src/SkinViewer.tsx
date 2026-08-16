@@ -201,7 +201,7 @@ export const SkinViewer = (props: SkinViewerProps) => {
 		 * showing, or the next real item would be diffed against a hole and sent in full for no reason.
 		 */
 		sent.current = { ...next, item: next.item ?? sent.current.item }
-		if (coversCanvas(patch, next.view)) {
+		if (coversCanvas(patch, next)) {
 			setStatus('loading')
 			// A NEW ITEM IS A NEW CHANCE. A lost GL context or a 404 on one model says nothing about the
 			// next one, so the fallback comes down and the frame is allowed to try. A protocol mismatch is

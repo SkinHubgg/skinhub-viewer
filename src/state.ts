@@ -31,8 +31,18 @@
  * So the diff is structural: a field is in the patch only if its VALUE moved.
  */
 
-import type { FrameInteractions, FrameItem, FramePatch, FrameSettings, PlacementSlots } from './protocol.js'
-import { resolveSubject } from './item.js'
+import type {
+	FrameCharm,
+	FrameCollectible,
+	FrameInteractions,
+	FrameItem,
+	FramePatch,
+	FrameSettings,
+	FrameSticker,
+	FrameSubjectKind,
+	PlacementSlots,
+} from './protocol.js'
+import { resolveStandalone, resolveSubject } from './item.js'
 import type { SkinViewerError, SkinViewerProps, ViewerGloves, ViewerView } from './types.js'
 
 /**
@@ -51,8 +61,23 @@ export type HelpReason = 'no-item' | 'bad-link' | 'unknown-weapon'
  * caller did not mention.
  */
 export type DesiredState = {
-	/** `null` when the props named no renderable item; {@link help} then says why. */
+	/**
+	 * WHICH OF THE FIVE IS ON SCREEN.
+	 *
+	 * *** THE ONE FIELD HERE THAT IS ALWAYS SET, AND THE EXCEPTION IS EARNED. *** Everything else in
+	 * this type obeys "absent means say nothing", because our defaults must not be frozen into somebody
+	 * else's URL. The subject cannot: going BACK to a weapon from a sticker has to be expressible, and a
+	 * diff can only express it if there is a value to compare against. So it is always resolved - and
+	 * {@link frameUrl} then declines to write `?subject=weapon`, which keeps the same promise in the one
+	 * place it can be kept.
+	 */
+	subject: FrameSubjectKind
+	/** `null` when the props named no renderable item, or named a subject that is not a weapon. */
 	item: FrameItem | null
+	/** Set only when {@link subject} names it. Same rule as `item`, one per standalone subject. */
+	sticker?: FrameSticker
+	charm?: FrameCharm
+	collectible?: FrameCollectible
 	/** The integrator's own inspect link, forwarded verbatim as `?i=`. See `item.ts`. */
 	inspectPayload: string | null
 	help: HelpReason | null
@@ -88,20 +113,49 @@ const HELP_FOR: Record<SkinViewerError['code'], HelpReason | null> = {
  * rather than a `TypeError`.
  */
 export const resolveState = (props: Partial<SkinViewerProps>): DesiredState => {
-	const subject = resolveSubject(props)
 	const settings = toFrameSettings(props.settings)
-
-	return {
-		item: subject.item,
-		inspectPayload: subject.inspectPayload,
-		help: subject.error ? HELP_FOR[subject.error.code] : null,
-		subjectError: subject.error,
+	/* Everything true of every subject. Hoisted so the two returns below cannot drift apart. */
+	const common = {
 		...(props.view !== undefined && { view: props.view }),
 		...(props.agent !== undefined && { agent: props.agent }),
 		...(props.gloves !== undefined && { gloves: props.gloves }),
 		...(settings !== undefined && { settings }),
 		...(props.interactions !== undefined && { interactions: { ...props.interactions } }),
 		...(props.editingSlot !== undefined && { editingSlot: props.editingSlot }),
+	}
+
+	/*
+	 * THE OTHER FOUR SUBJECTS FIRST, because each is named by its own prop and the weapon is the
+	 * fall-through. `item` stays null for them: there IS no weapon, and inventing one would put a rifle
+	 * into this package's URL that the frame would then hold behind a subject nobody is looking at.
+	 *
+	 * `agent` IS WRITTEN LAST for the operator, so `operator={{ pose }}` beats an `agent={{ pose }}` a
+	 * host also happened to pass. Two props answering one question is only reachable through the types'
+	 * back door, and the subject arm is the more specific statement.
+	 */
+	const standalone = resolveStandalone(props)
+	if (standalone)
+		return {
+			subject: standalone.subject,
+			item: null,
+			...(standalone.sticker && { sticker: standalone.sticker }),
+			...(standalone.charm && { charm: standalone.charm }),
+			...(standalone.collectible && { collectible: standalone.collectible }),
+			inspectPayload: null,
+			help: standalone.error ? HELP_FOR[standalone.error.code] : null,
+			subjectError: standalone.error,
+			...common,
+			...(standalone.agent && { agent: standalone.agent }),
+		}
+
+	const subject = resolveSubject(props)
+	return {
+		subject: 'weapon',
+		item: subject.item,
+		inspectPayload: subject.inspectPayload,
+		help: subject.error ? HELP_FOR[subject.error.code] : null,
+		subjectError: subject.error,
+		...common,
 	}
 }
 
@@ -159,6 +213,31 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 	const item = desired.item
 
 	if (desired.help) params.set('help', desired.help)
+
+	/*
+	 * ── THE SUBJECT ──────────────────────────────────────────────────────────────────────────
+	 *
+	 * `?subject=` IS WRITTEN FOR EVERY NON-WEAPON AND NEVER FOR A WEAPON. Not writing it for the weapon
+	 * keeps this file's promise about defaults: `?subject=weapon` in a customer's `<iframe src>` would
+	 * be OUR default frozen into THEIR embed. Writing it for the other four is not the same thing - it
+	 * is the caller's own statement, and for the operator it is the only way to say it, because
+	 * `?agent=` on its own has always meant "who holds the weapon".
+	 *
+	 * The id params are what the frame reads back; `?sticker=`/`?charm=`/`?collectible=` each imply the
+	 * subject on their own, so the pair is redundant by design rather than by accident - a URL that says
+	 * the same thing twice cannot be half-copied into meaning something else.
+	 */
+	if (desired.subject !== 'weapon') params.set('subject', desired.subject)
+	if (desired.sticker) {
+		params.set('sticker', String(desired.sticker.id))
+		num(params, 'wear', desired.sticker.wear)
+	}
+	if (desired.charm) {
+		params.set('charm', String(desired.charm.id))
+		// `?pattern=` and not `?seed=` - on this URL `seed` is already the WEAPON's paint seed.
+		num(params, 'pattern', desired.charm.pattern)
+	}
+	if (desired.collectible) params.set('collectible', String(desired.collectible.id))
 
 	if (item) {
 		params.set('weapon', item.weaponType)
@@ -291,6 +370,46 @@ export const diffState = (previous: DesiredState, next: DesiredState): FramePatc
 		if (Object.keys(item).length > 0) patch.item = item
 	}
 
+	/*
+	 * ── THE OTHER FOUR SUBJECTS ───────────────────────────────────────────────────────────────
+	 *
+	 * A GROUP IS DIFFED EVEN WHEN THE SUBJECT DID NOT MOVE, so a `wear` drag on a sticker is one small
+	 * patch per tick and nothing else - the identical shape a `float` drag on a rifle has, and cheap for
+	 * the identical reason: the id is not in the patch, so nothing keyed on the id can move.
+	 *
+	 * THE SUBJECT IS DIFFED SEPARATELY AND CARRIES NO GROUP WITH IT. Switching to a sticker whose id has
+	 * not changed sends `{ subject: 'sticker' }` alone, because the frame still holds the id it was given
+	 * before - which is what makes flipping between two subjects cost one field.
+	 */
+	if (next.subject !== previous.subject) {
+		patch.subject = next.subject
+		changed = true
+	}
+	/*
+	 * *** FIELD BY FIELD, NOT WHOLE-GROUP, AND THE TEST BELOW IS WHY. *** Sending the whole group would
+	 * be correct on the wire - the frame merges by field either way - and would still break the
+	 * contract, because `coversCanvas` reads `sticker.id !== undefined` to decide whether to raise the
+	 * caller's `loading` slot. A `wear` drag that restated the id would raise it sixty times a second
+	 * over a picture the frame never covered, which from outside is indistinguishable from a reload.
+	 * The item above is diffed per field for the same reason; gloves are the one group sent wholesale,
+	 * and that is because a partial pair is a state the renderer cannot resolve.
+	 */
+	const sticker = diffGroup(previous.sticker, next.sticker)
+	if (sticker) {
+		patch.sticker = sticker
+		changed = true
+	}
+	const charm = diffGroup(previous.charm, next.charm)
+	if (charm) {
+		patch.charm = charm
+		changed = true
+	}
+	const collectible = diffGroup(previous.collectible, next.collectible)
+	if (collectible) {
+		patch.collectible = collectible
+		changed = true
+	}
+
 	if (next.view !== undefined && next.view !== previous.view) {
 		patch.view = next.view
 		changed = true
@@ -328,6 +447,26 @@ export const diffState = (previous: DesiredState, next: DesiredState): FramePatc
 	}
 
 	return changed ? patch : undefined
+}
+
+/**
+ * One flat group, per field. `undefined` when nothing moved, so the caller can skip the key entirely.
+ *
+ * A KEY THE NEXT RENDER DID NOT MENTION IS NOT DIFFED AWAY - there is no way to say "unset" over the
+ * wire, and the alternative reading would make a conditional prop destructive. Same rule as
+ * {@link diffSettings} one level in.
+ */
+const diffGroup = <T extends object>(previous: T | undefined, next: T | undefined): Partial<T> | undefined => {
+	if (!next) return undefined
+	if (!previous) return { ...next }
+	const out: Partial<T> = {}
+	let changed = false
+	for (const key of Object.keys(next) as (keyof T)[])
+		if (!Object.is(previous[key], next[key])) {
+			out[key] = next[key]
+			changed = true
+		}
+	return changed ? out : undefined
 }
 
 const glovesEqual = (a: ViewerGloves | null | undefined, b: ViewerGloves | null | undefined) => {
@@ -378,12 +517,24 @@ const overlaysEqual = (a: FrameSettings['overlays'], b: FrameSettings['overlays'
 	return a.stickerGizmo === b.stickerGizmo && a.charmGizmo === b.charmGizmo && shallowEqual(a.gizmoStyle, b.gizmoStyle)
 }
 
-/** True when a patch would cover the canvas - see {@link IDENTITY_FIELDS}. */
-export const coversCanvas = (patch: FramePatch, view: ViewerView | undefined): boolean => {
+/**
+ * True when a patch would cover the canvas - see {@link IDENTITY_FIELDS} and `CHEAP_FIELDS`.
+ *
+ * IT TAKES THE WHOLE NEXT STATE rather than just the view, because one of the answers depends on which
+ * SUBJECT the patch lands on: an operator's id covers under `subject: 'agent'` for the same reason it
+ * covers under `view: 'agent'`, and does not under `hands`.
+ */
+export const coversCanvas = (patch: FramePatch, next: Pick<DesiredState, 'subject' | 'view'>): boolean => {
+	// A different KIND of subject is a different renderer. Always a reload, in every direction.
+	if (patch.subject !== undefined) return true
 	if (patch.view !== undefined) return true
 	if (patch.item && IDENTITY_FIELDS.some(field => patch.item?.[field] !== undefined)) return true
-	// The operator is identity in the `agent` view, where its `<Suspense>` tears the subtree down, and
-	// cheap in `hands`, where the arms are already mounted. The asymmetry is the renderer's, not ours.
-	if (patch.agent?.id !== undefined && view === 'agent') return true
+	// An id is identity for all four standalone subjects; their second field (`wear`, `pattern`) is not.
+	if (patch.sticker?.id !== undefined || patch.charm?.id !== undefined || patch.collectible?.id !== undefined)
+		return true
+	// The operator is identity when they ARE the subject, and in the `agent` view, where their
+	// `<Suspense>` tears the subtree down; cheap in `hands`, where the arms are already mounted. The
+	// asymmetry is the renderer's, not ours.
+	if (patch.agent?.id !== undefined && (next.subject === 'agent' || next.view === 'agent')) return true
 	return false
 }

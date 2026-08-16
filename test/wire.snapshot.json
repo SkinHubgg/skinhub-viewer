@@ -26,21 +26,47 @@
 	],
 	"state": [
 		"agent",
+		"charm",
+		"collectible",
 		"editingSlot",
 		"gloves",
 		"interactions",
 		"item",
 		"settings",
+		"sticker",
+		"subject",
 		"view"
 	],
 	"patch": [
 		"agent",
+		"charm",
+		"collectible",
 		"editingSlot",
 		"gloves",
 		"interactions",
 		"item",
 		"settings",
+		"sticker",
+		"subject",
 		"view"
+	],
+	"subjects": [
+		"agent",
+		"charm",
+		"collectible",
+		"sticker",
+		"weapon"
+	],
+	"sticker": [
+		"id",
+		"wear"
+	],
+	"charm": [
+		"id",
+		"pattern"
+	],
+	"collectible": [
+		"id"
 	],
 	"item": [
 		"float",

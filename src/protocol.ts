@@ -121,9 +121,35 @@ export type FrameInteractions = {
 	dragCharm?: boolean
 }
 
-/** Everything `/frame` holds. One field per prop of the renderer that a host can set. */
+/**
+ * *** THE FRAME'S FIVE SUBJECT KINDS. *** `weapon` covers gloves too - a glove is a `weaponType`.
+ *
+ * NOTE THE WORD: the wire says `agent` where `types.ts` says `operator`. That is the translation this
+ * package exists to do (see `item.ts`'s header): the frame's own subject vocabulary has always called
+ * the person an agent, and an integrator holding a weapon-modifier prop already named `agent` needs a
+ * different word for the standalone picture. One rename, in one file.
+ */
+export type FrameSubjectKind = 'weapon' | 'sticker' | 'charm' | 'collectible' | 'agent'
+
+/** The three standalone item groups, in the frame's words. An id, and at most one number. */
+export type FrameSticker = { id: number; wear?: number }
+export type FrameCharm = { id: number; pattern?: number }
+export type FrameCollectible = { id: number }
+
+/**
+ * Everything `/frame` holds. One field per prop of the renderer that a host can set.
+ *
+ * *** THE FIVE SUBJECTS ARE HELD AT ONCE AND `subject` PICKS ONE. *** A patch naming `sticker` does
+ * NOT make the sticker the subject - only `subject` does. That matters here in particular because this
+ * package restates its whole prop set on every render: if a group write switched the picture, a host
+ * holding both a weapon and a pin would flip between them on any render mentioning both.
+ */
 export type FrameState = {
+	subject: FrameSubjectKind
 	item: FrameItem
+	sticker: FrameSticker
+	charm: FrameCharm
+	collectible: FrameCollectible
 	view: 'gun' | 'hands' | 'agent'
 	agent: { id: number; pose?: string | null }
 	gloves: { type: string; paintIndex: number; float?: number; seed?: number } | null
@@ -141,7 +167,12 @@ export type FrameState = {
  * rather than merged would blank the weapon on every float tick.
  */
 export type FramePatch = {
+	/** The subject switch, and the only one - see {@link FrameState}. An IDENTITY change in every direction. */
+	subject?: FrameSubjectKind
 	item?: Partial<FrameItem>
+	sticker?: Partial<FrameSticker>
+	charm?: Partial<FrameCharm>
+	collectible?: Partial<FrameCollectible>
 	view?: FrameState['view']
 	agent?: Partial<FrameState['agent']>
 	gloves?: FrameState['gloves']

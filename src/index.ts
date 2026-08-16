@@ -6,6 +6,15 @@
  *     <SkinViewer item={{ weapon: 'weapon_ak47', paintIndex: 1449, float: 0.27 }} style={{ height: 420 }} />
  *     <SkinViewer inspectLink={tradeOffer.inspectLink} style={{ height: 420 }} />
  *
+ * A weapon (or a glove) is one of SIX ways to name a subject, and each is its own prop:
+ *
+ *     <SkinViewer sticker={{ id: 37, wear: 0.2 }} />        one sticker, the real holo/foil shader
+ *     <SkinViewer charm={{ id: 5 }} />                      one charm, off the gun
+ *     <SkinViewer collectible={{ id: 874 }} />              one pin, coin, medal or trophy
+ *     <SkinViewer operator={{ id: 5036 }} />                one agent, alone
+ *
+ * Exactly one of the six, enforced in the types - see `ViewerSubject`.
+ *
  * The 3D is not in here. It is a page on our origin that this component embeds and drives over
  * `postMessage`, which is why installing this pulls in no `three`, no `@react-three/fiber` and no
  * asset bundle - the only peer dependency is React. `EMBED.md` documents the same contract for stacks
@@ -62,14 +71,18 @@ export type {
 	ViewerAgent,
 	ViewerBackground,
 	ViewerCameraSettings,
+	ViewerCharmSubject,
+	ViewerCollectibleSubject,
 	ViewerEnvironmentSettings,
 	ViewerGloves,
 	ViewerInteractions,
+	ViewerOperatorSubject,
 	ViewerOverlaySettings,
 	ViewerQualitySettings,
 	ViewerResize,
 	ViewerSettings,
 	ViewerStatus,
+	ViewerStickerSubject,
 	ViewerSubject,
 	ViewerView,
 } from './types.js'

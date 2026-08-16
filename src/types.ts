@@ -145,6 +145,17 @@ type ItemConfiguration = {
  * This list is the FIRST half. It is here, as a value, because {@link SkinViewerProps.loading} is
  * raised off its complement - see `SkinViewer.tsx`'s `isIdentityChange` - and because a contract an
  * integrator relies on should be readable without opening the renderer.
+ *
+ * *** AND THE SAME SPLIT FOR THE OTHER FOUR SUBJECTS, which is a shorter table because they are
+ * smaller items: ***
+ *
+ *   `sticker`      identity `id`, cheap `wear`
+ *   `charm`        identity `id`, cheap `pattern`
+ *   `collectible`  identity `id`, and NOTHING is cheap - there is no other field to change
+ *   `operator`     identity `id`, cheap `pose`
+ *
+ * *** CHANGING WHICH SUBJECT YOU PASS IS ALWAYS AN IDENTITY CHANGE, *** in every direction: a weapon
+ * and a pin are drawn by different renderers, so the picture is rebuilt from nothing.
  */
 export const CHEAP_FIELDS = ['float', 'seed', 'statTrak', 'nameTag', 'stickers', 'charm'] as const
 
@@ -181,12 +192,118 @@ export type SkinViewerItem = ItemConfiguration &
 	)
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
+ * THE OTHER FOUR SUBJECTS
+ *
+ * *** A WEAPON IS ONE OF FIVE THINGS THE VIEWER CAN SHOW, NOT THE ONLY ONE. *** Owner: *"Weapons and
+ * gloves only... why not? it's already working in our system, I want them all to be inspectable
+ * through the viewer."* A GLOVE IS NOT ON THIS LIST because a glove is a `weapon` id like any other
+ * (`'sporty_gloves'`) - it always was one of the arms above.
+ *
+ * *** YOU NAME ONE BY PASSING ITS PROP, AND EXACTLY ONE. *** See {@link ViewerSubject}: the same
+ * `?: never` enforcement the `inspectLink` / `item` pair already had, widened to six arms. There is no
+ * `kind` or `type` discriminator to get wrong, because the prop you passed IS the discriminator.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * ONE STICKER, ON NOTHING - what `/sticker/:id` shows on our own site.
+ *
+ * *** NOT {@link SkinViewerSticker}, AND THE MISSING FIELDS ARE THE DIFFERENCE. *** That type is a
+ * sticker APPLIED to a weapon and carries a slot, a rotation and an offset; all three are statements
+ * about the sticker being ON something. Here the quad is the whole surface, so what is left is the id
+ * and how scratched it is.
+ *
+ * IT IS THE REAL SHADER AND NOT AN IMAGE ON A PLANE: holo, foil and glitter are functions of the view
+ * direction and of screen-space derivatives, so they exist only in 3D and only under lighting. That is
+ * the entire reason to embed a sticker rather than show your catalogue's icon.
+ */
+export type ViewerStickerSubject = {
+	/** `sticker_id` - the id in `@skinhub/cdn`'s `stickers.json`. */
+	id: number
+	/** Scratch, `0` (mint) to `1` (scraped off). Default `0`. Updates IN PLACE - see {@link CHEAP_FIELDS}. */
+	wear?: number
+}
+
+/**
+ * ONE CHARM, OFF THE GUN.
+ *
+ * It hangs in the pose its own model authors and does not swing: the physics exists to answer to how a
+ * rifle is being turned, and there is no rifle here. Everything that is the charm's own - its model,
+ * its per-id material, its template - is unchanged.
+ */
+export type ViewerCharmSubject = {
+	/** The id in `@skinhub/cdn`'s `keychains.json`. */
+	id: number
+	/**
+	 * The charm's template. NOT a variant: it drives a hue/saturation/brightness adjust on the charm's
+	 * own albedo, so two charms with the same `id` and a different value are the same model in different
+	 * colours. Default `0`. Updates IN PLACE.
+	 *
+	 * *** SPELLED `pattern` HERE AND `seed` ON {@link SkinViewerCharm}, WHICH IS DELIBERATE. *** On a
+	 * weapon the charm sits beside a paint `seed` and calling it a seed reads naturally; as a SUBJECT it
+	 * sits beside nothing, and `pattern` is what the wire, the game and the URL (`?pattern=`) all call
+	 * it. The one word that could not be reused in both places is `seed`, because on the URL that is
+	 * already the weapon's paint seed.
+	 */
+	pattern?: number
+}
+
+/**
+ * ONE PIN, COIN, MEDAL OR TROPHY.
+ *
+ * *** IT HAS NOTHING ELSE, AND THAT IS THE WHOLE TYPE. *** No float, no seed, no wear, no template, no
+ * pose: two copies of the same medal ARE the same object. If you are drawing controls for an embedded
+ * collectible, there is nothing to draw except the camera.
+ */
+export type ViewerCollectibleSubject = {
+	/** The item definition index in `@skinhub/cdn`'s `collectibles.json`. */
+	id: number
+}
+
+/**
+ * ONE OPERATOR, ALONE - the agent as the SUBJECT rather than as the person holding a weapon.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ * *** WHY THIS IS NOT {@link ViewerAgent}, WHEN IT NAMES THE SAME CATALOGUE ROW. ***
+ *
+ * They are two pictures, and the prop you pass is which one you get:
+ *
+ *   `agent={{ id }}`      WHO IS HOLDING IT. A modifier on the weapon subject, visible in the `hands`
+ *                         and `agent` views, ignored in `gun`. The weapon is what is being shown.
+ *   `operator={{ id }}`   THE PERSON IS WHAT IS BEING SHOWN. No weapon is drawn at all.
+ *
+ * A marketplace with an agent row in an inventory wants the second: they asked for Sir Bloody Darryl,
+ * and rendering him holding an AK-47 nobody named would be a picture of two items, one of them
+ * invented. (Our own site made the opposite call for its own routes, for a reason that does not carry:
+ * in the app there is always a weapon being configured, so `/agent/:id` folds into `?view=agent`
+ * rather than duplicating a surface. An embed has no such weapon.)
+ *
+ * PASSING BOTH IS NOT POSSIBLE for the subject - `?: never` - and passing `agent` ALONGSIDE `operator`
+ * simply does nothing, because there is no weapon for anyone to hold.
+ */
+export type ViewerOperatorSubject = {
+	/** An agent's item definition index; `5036` is the default Terrorist. */
+	id: number
+	/**
+	 * Which main-menu performance they play, by clip leaf name, or `null` (the default) for their
+	 * team's own knife idle - what CS2's main menu opens on.
+	 *
+	 * 285 leaves across 44 weapon families are reachable. THE WEAPON EACH CLIP HOLDS IS NOT DRAWN, so
+	 * `Look at gun` is an operator studying an empty hand; that is a property of the performance rather
+	 * than a defect. Updates IN PLACE - the clip is swapped on a rig that keeps running.
+	 */
+	pose?: string | null
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════
  * PRESENTATION
  * ═══════════════════════════════════════════════════════════════════════════════════════════ */
 
 /**
  * What the item is being shown ON. All three are the same item under the same lighting, finish,
  * stickers and charm - the difference is the camera and what is holding the weapon.
+ *
+ * *** IT IS A PROPERTY OF THE WEAPON SUBJECT AND IS IGNORED BY THE OTHER FOUR. *** A sticker is not a
+ * way of showing a weapon, so there is nothing for it to choose between.
  *
  *   `gun`     the item alone, orbitable, framed to the viewport. The default.
  *   `hands`   CS2's first-person viewmodel, driven by the game's own clips. Orbit is off here because
@@ -494,8 +611,34 @@ export type ViewerResize = { width: number; height: number; dpr: number }
  * was still `undefined` when the component mounted: the frame renders a short instruction card rather
  * than a blank box or - worse - our default AK-47, which would look like a successful render of the
  * wrong item. `onError` fires with `no-item` at the same time. See `SkinViewer.tsx`.
+ *
+ * *** AND IT IS SIX ARMS NOW RATHER THAN TWO, on exactly the same rule. *** A weapon, an inspect link
+ * and the four subjects above are six ways of naming ONE thing to render, and the same `?: never`
+ * enforcement covers all of them: passing two is an excess-property error, passing none is a
+ * missing-property error, and there is no `kind` discriminator anywhere because the prop you passed is
+ * the discriminator.
  */
-export type ViewerSubject = { inspectLink: string; item?: never } | { item: SkinViewerItem; inspectLink?: never }
+type SubjectArms = {
+	inspectLink: string
+	item: SkinViewerItem
+	sticker: ViewerStickerSubject
+	charm: ViewerCharmSubject
+	collectible: ViewerCollectibleSubject
+	operator: ViewerOperatorSubject
+}
+
+/** One arm present, the other five forbidden. Written once so six arms cannot disagree about five. */
+type OnlySubject<K extends keyof SubjectArms> = { [P in K]: SubjectArms[P] } & {
+	[P in Exclude<keyof SubjectArms, K>]?: never
+}
+
+export type ViewerSubject =
+	| OnlySubject<'inspectLink'>
+	| OnlySubject<'item'>
+	| OnlySubject<'sticker'>
+	| OnlySubject<'charm'>
+	| OnlySubject<'collectible'>
+	| OnlySubject<'operator'>
 
 export type SkinViewerProps = ViewerSubject & {
 	/* ── Presentation ──────────────────────────────────────────────────────────────────────── */
