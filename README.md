@@ -62,7 +62,7 @@ Exactly one subject is required - `item`, `inspectLink`, `sticker`, `charm`, `co
 | `view` | `'gun' \| 'hands' \| 'agent'` | `'gun'` | item alone, first-person, or held by an operator |
 | `agent` | `{ id, pose? }` | default T | who is *holding* the weapon, in `hands` and `agent`. `operator` is the agent shown alone |
 | `gloves` | `{ type, paintIndex, float?, seed? } \| null` | `null` | `null` is the wearer's own pair |
-| `settings` | `{ camera?, quality?, environment?, overlays? }` | see below | shallow-merged per group |
+| `settings` | `{ camera?, quality?, environment?, overlays?, locale? }` | see below | shallow-merged per group |
 | `interactions` | `{ orbit?, zoom?, dragStickers?, dragCharm? }` | orbit + zoom on | what the user may do |
 | `editingSlot` | `number` | `-1` | which sticker slot is open; `5` is the charm |
 | `onReady` | `() => void` | - | stopped loading - **a level, not an edge**: it fires again after every weapon or view change |
@@ -80,6 +80,41 @@ building pickers.
 
 `view`, `agent`, `gloves` and `editingSlot` describe a weapon, and the other four subjects ignore them.
 `settings` and `interactions` apply to all six.
+
+### If your product is not in English
+
+The viewer draws a few strings of its own - confirm and cancel on a gizmo, the words on its number
+fields, the loading card. **They live in our document, so your `dir`, your `lang` and your message
+catalogue all stop at the iframe boundary.** Send them:
+
+```tsx
+const t = useTranslations('viewer')
+
+<SkinViewer
+  item={item}
+  settings={{
+    overlays: { stickerGizmo: true, charmGizmo: true },
+    locale: {
+      dir: 'rtl',
+      labels: { confirm: t('confirm'), cancel: t('cancel'), wear: t('wear'), seed: t('seed') },
+    },
+  }}
+/>
+```
+
+Seven labels - `confirm`, `cancel`, `wear`, `seed`, `loading`, `loadingView`, `noModel` - and every one
+is optional: **anything you leave out stays English**, so translating two does not lose the other five.
+There is no language tag and there will not be one; we ship no translations, and passing `'he'` would
+mean us guessing at your product's voice out of a catalogue we cannot read.
+
+`dir` is the **text**, not the layout: the gizmo's pill stays left-to-right in both directions (it holds
+a number and a button pair, and it positions itself in canvas pixels against the item), while every
+sentence the viewer draws follows your direction.
+
+A label is capped at 64 characters and may not be empty or carry control characters; one that breaks a
+rule is dropped, reported through `onError` as `bad-message`, and the English one is used - it is never
+truncated. The instruction card, the protocol-mismatch card and `onError` messages stay English on
+purpose: they are addressed to you, not to your user.
 
 Changing `float`, `seed`, `statTrak`, `nameTag`, `stickers` or `charm` updates **in place** - no
 reload, no flicker. Changing the weapon, paint index, legacy variant or view shows a loading cover. On

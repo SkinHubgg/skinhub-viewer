@@ -76,6 +76,8 @@ export type {
 	ViewerEnvironmentSettings,
 	ViewerGloves,
 	ViewerInteractions,
+	ViewerLabels,
+	ViewerLocaleSettings,
 	ViewerOperatorSubject,
 	ViewerOverlaySettings,
 	ViewerQualitySettings,
@@ -84,6 +86,7 @@ export type {
 	ViewerStatus,
 	ViewerStickerSubject,
 	ViewerSubject,
+	ViewerTextDirection,
 	ViewerView,
 } from './types.js'
 export { CHEAP_FIELDS, MAP_NAMES } from './types.js'

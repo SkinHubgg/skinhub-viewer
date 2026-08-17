@@ -41,9 +41,11 @@ import {
 	type FrameEvent,
 	type FrameInteractions,
 	type FrameItem,
+	type FrameLabels,
 	type FramePatch,
 	type FrameSettings,
 	type FrameState,
+	type FrameTextDirection,
 	type HostMessage,
 	type PlacementSlots,
 } from '../src/protocol.js'
@@ -116,12 +118,16 @@ const wire = () => ({
 	agent: keysOf<FrameState['agent']>()(['id', 'pose']),
 	gloves: keysOf<NonNullable<FrameState['gloves']>>()(['type', 'paintIndex', 'float', 'seed']),
 
-	settingsGroups: keysOf<Settings>()(['camera', 'quality', 'environment', 'overlays']),
+	settingsGroups: keysOf<Settings>()(['camera', 'quality', 'environment', 'overlays', 'locale']),
 	camera: keysOf<NonNullable<Settings['camera']>>()(['fov', 'defaultZoom']),
 	quality: keysOf<NonNullable<Settings['quality']>>()(['bloom', 'bloomSpill', 'renderScale', 'antialias', 'shadows']),
 	environment: keysOf<NonNullable<Settings['environment']>>()(['map', 'timeOfDay', 'rain', 'background']),
 	overlays: keysOf<Overlays>()(['stickerGizmo', 'charmGizmo', 'gizmoStyle']),
 	gizmoStyle: keysOf<NonNullable<Overlays['gizmoStyle']>>()(['color', 'shadowColor']),
+	locale: keysOf<NonNullable<Settings['locale']>>()(['dir', 'labels']),
+	/* The host's own copy. Every one is optional and an absent one stays English - see `FrameLocale`. */
+	labels: keysOf<FrameLabels>()(['confirm', 'cancel', 'wear', 'seed', 'loading', 'loadingView', 'noModel']),
+	directions: membersOf<FrameTextDirection>()(['ltr', 'rtl']),
 
 	interactions: keysOf<FrameInteractions>()(['orbit', 'zoom', 'dragStickers', 'dragCharm']),
 })

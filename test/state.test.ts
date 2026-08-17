@@ -116,6 +116,73 @@ describe('frameUrl', () => {
 	test('no item at all asks the frame to explain itself rather than showing our default', () => {
 		expect(frameUrl('https://skinhub.gg', resolveState({})).src).toContain('help=no-item')
 	})
+
+	/* ── THE HOST'S OWN COPY ─────────────────────────────────────────────────────────────────── */
+
+	/**
+	 * *** THESE SEVEN SPELLINGS ARE HALF OF A CONTRACT WHOSE OTHER HALF IS IN ANOTHER REPOSITORY. ***
+	 * `app/frame/urlState.ts` reads exactly these param names, and a disagreement is SILENT in a way a
+	 * message-shape disagreement is not: an unknown query param is dropped without a word, on purpose,
+	 * because the URL is shared with `?origin=`, `?help=` and whatever the host appends. So the freeze
+	 * has to be here, spelled out, rather than left to `wire.snapshot.json` - which describes the
+	 * MESSAGE door and cannot see this one.
+	 */
+	test('the label params are spelled exactly as the frame reads them', () => {
+		const params = query({
+			settings: {
+				locale: {
+					dir: 'rtl',
+					labels: {
+						confirm: 'אישור',
+						cancel: 'ביטול',
+						wear: 'שחיקה',
+						seed: 'תבנית',
+						loading: 'טוען',
+						loadingView: 'טוען תצוגת {view}',
+						noModel: 'הדגם עדיין לא פורסם',
+					},
+				},
+			},
+		})
+		expect([...params.keys()].sort()).toEqual([
+			'dir',
+			'labelcancel',
+			'labelconfirm',
+			'labelloading',
+			'labelloadingview',
+			'labelnomodel',
+			'labelseed',
+			'labelwear',
+			'paint',
+			'weapon',
+		])
+		expect(params.get('labelconfirm')).toBe('אישור')
+		// The placeholder survives encoding rather than being resolved here - the frame owns the view names.
+		expect(params.get('labelloadingview')).toBe('טוען תצוגת {view}')
+	})
+
+	/**
+	 * *** THE LABELS ARE ON THE FIRST PAINT OR THEY ARE A FLICKER. *** A gizmo that says Confirm in
+	 * English for one round trip and in Hebrew after it is worse on a product page than either alone, so
+	 * this is a URL param and not only a `set` field. The assertion is on the ENCODED string, because a
+	 * Hebrew label in a query string is percent-encoded and anything that mangles that produces a label
+	 * nobody can read.
+	 */
+	test('a translated label is in the src the iframe boots on', () => {
+		const { src } = frameUrl(
+			'https://skinhub.gg',
+			resolveState(props({ settings: { locale: { dir: 'rtl', labels: { confirm: 'אישור' } } } })),
+		)
+		expect(src).toContain('dir=rtl')
+		expect(src).toContain(`labelconfirm=${encodeURIComponent('אישור')}`)
+		expect(new URL(src).searchParams.get('labelconfirm')).toBe('אישור')
+	})
+
+	/** A caller who translated two of seven writes two params. Ours must not appear beside them. */
+	test('an untranslated label is absent rather than English in their URL', () => {
+		const params = query({ settings: { locale: { labels: { confirm: 'אישור', cancel: 'ביטול' } } } })
+		expect([...params.keys()].sort()).toEqual(['labelcancel', 'labelconfirm', 'paint', 'weapon'])
+	})
 })
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
@@ -184,6 +251,40 @@ describe('diffState', () => {
 
 		const back = diffState(after, before)
 		expect(back?.gloves).toEqual({ type: 'sporty_gloves', paintIndex: 10_038 })
+	})
+
+	/**
+	 * *** A FRESH LABELS OBJECT HOLDING THE SAME WORDS IS NOT A CHANGE, and this is the one comparison in
+	 * the file that would be wrong by identity. *** A host resolving copy from a catalogue writes
+	 * `labels={{ confirm: t('confirm') }}` - a new object every render, with `t()` returning the same
+	 * string every time. Identity alone would post a `set` per render for ever, into a gizmo the user may
+	 * be mid-drag inside.
+	 */
+	test('the same copy in a fresh object is not a change', () => {
+		const locale = () => ({ locale: { dir: 'rtl' as const, labels: { confirm: 'אישור' } } })
+		const before = resolveState(props({ settings: locale() }))
+		const after = resolveState(props({ settings: locale() }))
+		expect(before.settings?.locale).not.toBe(after.settings?.locale)
+		expect(diffState(before, after)).toBeUndefined()
+	})
+
+	test('a changed word is a patch carrying the copy group alone', () => {
+		const before = resolveState(props({ settings: { locale: { labels: { confirm: 'Confirm' } } } }))
+		const after = resolveState(props({ settings: { locale: { labels: { confirm: 'אישור' } } } }))
+		expect(diffState(before, after)).toEqual({ settings: { locale: { labels: { confirm: 'אישור' } } } })
+	})
+
+	/**
+	 * *** AND CHANGING THE COPY MUST NOT COVER THE CANVAS. *** It is a label, not an item: a host that
+	 * switches language while a viewer is mounted should see the words change, not a loading card over
+	 * a reloaded weapon. `coversCanvas` never mentions `settings`, and this is the test that says so.
+	 */
+	test('a language switch does not reload the picture', () => {
+		const before = resolveState(props({ settings: { locale: { labels: { confirm: 'Confirm' } } } }))
+		const after = resolveState(props({ settings: { locale: { dir: 'rtl', labels: { confirm: 'אישור' } } } }))
+		const patch = diffState(before, after)
+		expect(patch).toBeDefined()
+		expect(coversCanvas(patch ?? {}, after)).toBe(false)
 	})
 
 	test('a sticker moving by a fraction is a patch; the same placement twice is not', () => {

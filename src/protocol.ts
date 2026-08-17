@@ -75,7 +75,7 @@ export const FRAME_CHANNEL = 'skinhub-viewer'
  * decision and it is paid deliberately, in exchange for never shipping a viewer that renders a
  * partly-understood item.
  */
-export const FRAME_PROTOCOL_VERSION = 1
+export const FRAME_PROTOCOL_VERSION = 2
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
  * THE STATE, IN THE FRAME'S WORDS
@@ -103,6 +103,34 @@ export type FrameItem = {
 	stickers?: PlacementSlots
 }
 
+/**
+ * THE COPY THE FRAME DRAWS, AND WHICH WAY IT READS. See `types.ts`'s `ViewerLocaleSettings`.
+ *
+ * *** EVERY FIELD IS OPTIONAL AND AN ABSENT ONE STAYS ENGLISH, *** which is the whole shape of the
+ * feature: a host that translates three of the six must not lose the fourth to `undefined`.
+ *
+ * `labels` IS ONE FIELD HOLDING SIX, so a patch replaces it wholesale exactly as `gizmoStyle` is
+ * replaced - the frame merges a settings group one level deep and no further. This package restates
+ * the whole object on every render, so that costs it nothing; a hand-rolled host sending one label at
+ * a time is the case to know about, and `EMBED.md` §6 says so.
+ */
+export type FrameLabels = {
+	confirm?: string
+	cancel?: string
+	wear?: string
+	seed?: string
+	loading?: string
+	loadingView?: string
+	noModel?: string
+}
+
+export type FrameTextDirection = 'ltr' | 'rtl'
+
+export type FrameLocale = {
+	dir?: FrameTextDirection
+	labels?: FrameLabels
+}
+
 export type FrameSettings = {
 	camera?: { fov?: number; defaultZoom?: number }
 	quality?: { bloom?: number; bloomSpill?: number; renderScale?: number; antialias?: boolean; shadows?: boolean }
@@ -112,6 +140,7 @@ export type FrameSettings = {
 		charmGizmo?: boolean
 		gizmoStyle?: { color?: string; shadowColor?: string }
 	}
+	locale?: FrameLocale
 }
 
 export type FrameInteractions = {

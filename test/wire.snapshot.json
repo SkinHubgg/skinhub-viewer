@@ -1,6 +1,6 @@
 {
 	"channel": "skinhub-viewer",
-	"version": 1,
+	"version": 2,
 	"envelope": [
 		"channel",
 		"from",
@@ -96,6 +96,7 @@
 	"settingsGroups": [
 		"camera",
 		"environment",
+		"locale",
 		"overlays",
 		"quality"
 	],
@@ -124,6 +125,23 @@
 	"gizmoStyle": [
 		"color",
 		"shadowColor"
+	],
+	"locale": [
+		"dir",
+		"labels"
+	],
+	"labels": [
+		"cancel",
+		"confirm",
+		"loading",
+		"loadingView",
+		"noModel",
+		"seed",
+		"wear"
+	],
+	"directions": [
+		"ltr",
+		"rtl"
 	],
 	"interactions": [
 		"dragCharm",

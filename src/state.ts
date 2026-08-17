@@ -36,6 +36,7 @@ import type {
 	FrameCollectible,
 	FrameInteractions,
 	FrameItem,
+	FrameLabels,
 	FramePatch,
 	FrameSettings,
 	FrameSticker,
@@ -178,6 +179,13 @@ const toFrameSettings = (settings: SkinViewerProps['settings']): FrameSettings |
 			...settings.overlays,
 			...(settings.overlays.gizmoStyle && { gizmoStyle: { ...settings.overlays.gizmoStyle } }),
 		}
+	// The labels are copied one level down for the same reason `gizmoStyle` is: they are the one group a
+	// host is likely to hold in a memo of their own and rebuild in place from a message catalogue.
+	if (settings.locale)
+		out.locale = {
+			...settings.locale,
+			...(settings.locale.labels && { labels: { ...settings.locale.labels } }),
+		}
 	return out
 }
 
@@ -192,6 +200,24 @@ const flag = (params: URLSearchParams, key: string, value: boolean | undefined) 
 
 const num = (params: URLSearchParams, key: string, value: number | undefined) => {
 	if (value !== undefined) params.set(key, String(value))
+}
+
+/**
+ * One query param per label.
+ *
+ * *** A `Record` OVER THE KEY UNION AND NOT AN ARRAY OF PAIRS, so it is EXHAUSTIVE: *** a label added
+ * to {@link FrameLabels} that is not spelled here fails to compile. Without that, the next label would
+ * reach the message door and silently miss the URL one - i.e. it would work on every render except the
+ * first, which is the hardest kind of gap to see.
+ */
+const LABEL_PARAMS: Record<keyof FrameLabels, string> = {
+	confirm: 'labelconfirm',
+	cancel: 'labelcancel',
+	wear: 'labelwear',
+	seed: 'labelseed',
+	loading: 'labelloading',
+	loadingView: 'labelloadingview',
+	noModel: 'labelnomodel',
 }
 
 /**
@@ -282,6 +308,28 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 	flag(params, 'charmgizmo', s?.overlays?.charmGizmo)
 	if (s?.overlays?.gizmoStyle?.color) params.set('gizmocolor', s.overlays.gizmoStyle.color)
 	if (s?.overlays?.gizmoStyle?.shadowColor) params.set('gizmoshadow', s.overlays.gizmoStyle.shadowColor)
+
+	/*
+	 * ── THE COPY, AND WHICH WAY IT READS ─────────────────────────────────────────────────────
+	 *
+	 * *** IN THE URL AND NOT ONLY IN A MESSAGE, AND THAT IS THE POINT OF PUTTING THEM HERE. *** The
+	 * labels have to be on the FIRST paint: a gizmo that spells Confirm in English for one round trip
+	 * and in Hebrew after it is a flicker on somebody's product page, and the whole reason this file
+	 * builds a URL at all is that the first picture must be the host's own. It is also what gives the
+	 * raw-`<iframe>` integrator - a PHP shop with a Hebrew page, which is exactly the customer this
+	 * feature exists for - the same capability with no JavaScript.
+	 *
+	 * ONE PARAM PER LABEL, PREFIXED. `?wear=` is already the sticker subject's scratch and `?seed=` is
+	 * already the weapon's paint seed, so the words cannot be reused bare; `label…` is the same
+	 * noun-first shape `?gizmocolor=` uses.
+	 */
+	if (s?.locale?.dir) params.set('dir', s.locale.dir)
+	const labels = s?.locale?.labels
+	if (labels)
+		for (const key of Object.keys(LABEL_PARAMS) as (keyof FrameLabels)[]) {
+			const label = labels[key]
+			if (label) params.set(LABEL_PARAMS[key], label)
+		}
 
 	flag(params, 'orbit', desired.interactions?.orbit)
 	// The wheel gesture is named after the input that performs it, because `?zoom=` is the camera's.
@@ -507,6 +555,10 @@ const diffSettings = (
 		out.overlays = next.overlays
 		changed = true
 	}
+	if (next.locale && !localeEqual(previous?.locale, next.locale)) {
+		out.locale = next.locale
+		changed = true
+	}
 
 	return changed ? out : undefined
 }
@@ -515,6 +567,18 @@ const overlaysEqual = (a: FrameSettings['overlays'], b: FrameSettings['overlays'
 	if (a === b) return true
 	if (!a || !b) return false
 	return a.stickerGizmo === b.stickerGizmo && a.charmGizmo === b.charmGizmo && shallowEqual(a.gizmoStyle, b.gizmoStyle)
+}
+
+/**
+ * *** COMPARED BY VALUE AND NOT BY IDENTITY, WHICH IS THE WHOLE REASON THIS FUNCTION EXISTS. *** A host
+ * resolving labels from a message catalogue - `{ confirm: t('confirm') }` - builds a fresh object on
+ * every render, and `t()` returns the same string every time. Identity alone would therefore post a
+ * `set` per render for ever, and the labels reach a gizmo the user may be mid-drag inside.
+ */
+const localeEqual = (a: FrameSettings['locale'], b: FrameSettings['locale']) => {
+	if (a === b) return true
+	if (!a || !b) return false
+	return a.dir === b.dir && shallowEqual(a.labels, b.labels)
 }
 
 /**

@@ -261,6 +261,51 @@ combinations are supported.
 **If you turn dragging on, listen for the `change` event** (below), or you will not be able to save
 what your user did.
 
+### The viewer's own words, and which way they read
+
+The viewer draws a few strings of its own: confirm and cancel on a gizmo, the words on its number
+fields, the loading card, and the notice on a collectible whose 3D model we have not published. **They
+are inside our document, so nothing on your page can reach them** - not your `dir`, not your `lang`,
+not your stylesheet, and not your message catalogue. If your product is not in English, send them.
+
+| parameter | | default |
+|---|---|---|
+| `dir` | `ltr` / `rtl` - the text direction of everything the viewer draws over the canvas | `ltr` |
+| `labelconfirm` | the gizmo's confirm button, which is an icon with no text | `Confirm` |
+| `labelcancel` | the gizmo's cancel button | `Cancel` |
+| `labelwear` | the sticker's scratch field - the word on the pill *and* its accessible name | `Wear` |
+| `labelseed` | the charm's template field, on the same terms | `Seed` |
+| `labelloading` | the loading card, and the spinner's accessible name | `Loading` |
+| `labelloadingview` | the card shown while a view change settles. `{view}` is replaced with `Gun`, `Hands` or `Agent` | `Loading {view} view` |
+| `labelnomodel` | the notice over a collectible whose model is not published, where the icon is shown instead | `This item's 3D model has not been published yet - showing the in-game icon instead.` |
+
+```
+?weapon=weapon_ak47&paint=1449&stickergizmo=1&dir=rtl
+  &labelconfirm=%D7%90%D7%99%D7%A9%D7%95%D7%A8&labelcancel=%D7%91%D7%99%D7%98%D7%95%D7%9C
+```
+
+**Every one is optional and anything you leave out stays English.** Translate two and the other five
+keep working; there is no half-resolved state.
+
+**`{view}` is optional in your own sentence.** `Gun` / `Hands` / `Agent` are the viewer's words and are
+not translatable, so write `labelloadingview` without the placeholder if you would rather not have an
+English word inside a Hebrew sentence - you lose only the which-view detail.
+
+**A label is at most 64 characters, must be non-empty, and may not contain control or bidi-override
+characters.** One that breaks any of those is dropped and named in `problems` (or an `error` event) and
+the English one is used: **we never truncate**, because a shortened version of your sentence is a word
+we invented in a language we cannot read.
+
+**`dir` is the text, not the layout.** The gizmo's pill stays left-to-right in both directions - it
+holds a number and a confirm/cancel pair, and its position is solved in canvas pixels against the
+item's own silhouette, so mirroring it would move the buttons away from the thing they belong to. What
+`dir` moves is every sentence the viewer draws, and the flex order and padding of the cards they sit in.
+
+**Three strings are deliberately not translatable**: the instruction card (`?help=`), the
+protocol-mismatch card, and `error.message`. Those are addressed to *you* rather than to your user, and
+a translated diagnostic is one nobody can search for. The viewmodel's keybind row (`F Inspect`,
+`R Reload`) is not translatable either - half of each row is a physical key name.
+
 ---
 
 ## 6. Live updates
@@ -275,7 +320,7 @@ const viewer = document.getElementById('viewer')
 
 const set = patch =>
   viewer.contentWindow.postMessage(
-    { channel: 'skinhub-viewer', v: 1, from: 'host', type: 'set', patch },
+    { channel: 'skinhub-viewer', v: 2, from: 'host', type: 'set', patch },
     FRAME_ORIGIN,
   )
 
@@ -302,7 +347,7 @@ document.querySelector('#float').oninput = e => set({ item: { float: +e.target.v
 Every message in both directions carries these three fields:
 
 ```js
-{ channel: 'skinhub-viewer', v: 1, from: 'host' | 'viewer', type: ... }
+{ channel: 'skinhub-viewer', v: 2, from: 'host' | 'viewer', type: ... }
 ```
 
 - `channel` - anything without it is not ours and is ignored in silence. `postMessage` is a shared bus;
@@ -334,6 +379,7 @@ set({
     quality:     { bloom, bloomSpill, renderScale, antialias, shadows },
     environment: { map, timeOfDay, rain, background },
     overlays:    { stickerGizmo, charmGizmo, gizmoStyle: { color, shadowColor } },
+    locale:      { dir, labels: { confirm, cancel, wear, seed, loading, loadingView, noModel } },
   },
   interactions: { orbit, zoom, dragStickers, dragCharm },
   editingSlot: -1,
@@ -351,6 +397,12 @@ both to do both. The split is what lets you pre-load the pin a visitor is about 
 disturbing the rifle on screen, and what stops a host that restates its whole state on every render
 from flipping subject whenever two groups happen to be present. Switching back is one field -
 `set({ subject: 'weapon' })` - and the weapon is exactly where you left it.
+
+**`labels` is one field and is replaced whole.** It is the one exception to the merge rule above, and
+it falls out of it: a settings group merges one field deep, and `labels` *is* that field - so
+`set({ settings: { locale: { labels: { cancel } } } })` after a patch that sent `confirm` leaves you
+with `cancel` alone. Send the whole object, which is what `@skinhub/viewer` does on every render.
+`gizmoStyle` has always worked this way for the same reason.
 
 **`null` is a value, not an absence**, wherever it means something: `nameTag: null` is no plate,
 `statTrak: false` is no counter, `gloves: null` is the wearer's own default pair, `agent.pose: null` is
@@ -428,6 +480,10 @@ explanation.
 **A raw `<iframe src>` can never hit this.** It never sends a message, so it has no version to
 disagree about. Only a host that talks to the frame can be out of date.
 
+**The current version is `2`.** It added `settings.locale` - the strings above and their direction - and
+started naming unknown patch keys in `problems`. Protocol 1 hosts (`@skinhub/viewer` 0.2.x and earlier)
+must update; there is no back-compat window, by design.
+
 ---
 
 ## 8. Debugging a URL
@@ -452,6 +508,30 @@ problems: [
 
 Booleans follow one rule everywhere: **`0` is off, anything else present is on, absent means "leave it
 alone".**
+
+### What "named" covers, per door
+
+**A parameter whose *value* the viewer cannot read is always named** - on both doors, as above.
+
+**A key the viewer does not have at all is named over `postMessage` and ignored in silence in a URL**,
+and the asymmetry is deliberate:
+
+```js
+set({ float: 0.3 })                    // error: `float: not a field this build reads - a patch takes …`
+set({ item: { flaot: 0.3 } })          // error: `item.flaot: not a field this build reads - item takes …`
+```
+
+```
+?flaot=0.3                             ← nothing. Silence.
+```
+
+A patch is addressed to us alone, so every key in it was meant for us and a misspelling is worth a
+sentence. A query string is **shared**: `?origin=`, `?help=` and the `?weapon=`+`?skin=` pair are read
+before the viewer's own parsing, and you are free to append a cache-buster or a tracking param of your
+own. Naming unknown params there would report your own URL back at you as an error, so it does not.
+
+If a URL parameter appears to do nothing, check the spelling against the tables above and read
+`problems` on the `hello` event: a *valid* name with a bad value is always in there.
 
 ### `?help=` - ask the frame to explain itself
 

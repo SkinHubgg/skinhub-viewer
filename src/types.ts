@@ -500,7 +500,89 @@ export type ViewerOverlaySettings = {
 }
 
 /**
- * *** THE FOUR GROUPS ARE THE FOUR THE FRAME SPEAKS, AND NO MORE. ***
+ * *** THE VIEWER'S OWN COPY, AND WHICH WAY IT READS - for a host whose page is not in English. ***
+ *
+ * The frame draws a few strings of its own: the confirm and cancel buttons on a gizmo, the words on
+ * its number fields, and the loading card. *** THEY ARE INSIDE ANOTHER DOCUMENT, ON ANOTHER ORIGIN,
+ * SO NOTHING ON YOUR PAGE CAN REACH THEM *** - not your `dir`, not your `lang`, not your stylesheet
+ * and not your message catalogue. A localised host that could not send them would ship an English
+ * editing UI floating over its own translated modal, with no way to fix it. That is what this is for.
+ *
+ * *** THERE IS NO LANGUAGE TAG AND THERE WILL NOT BE ONE. *** We do not ship translations - passing
+ * `'he'` would mean us guessing at your product's voice out of a catalogue you cannot see, and being
+ * a version behind it for ever. You already have these words in your own catalogue; send them.
+ *
+ *     const t = useTranslations('viewer')
+ *     settings={{ locale: { dir: 'rtl', labels: { confirm: t('confirm'), cancel: t('cancel') } } }}
+ *
+ * *** EVERY LABEL IS OPTIONAL AND AN ABSENT ONE STAYS ENGLISH. *** Translate two of six and the other
+ * four keep working; there is no half-resolved state and no `undefined` reaching a button.
+ */
+export type ViewerLocaleSettings = {
+	/**
+	 * The TEXT DIRECTION of the frame's own overlays. Default `'ltr'`.
+	 *
+	 * *** IT IS THE TEXT AND NOT THE LAYOUT, and that is a decision rather than a shortcut. *** The
+	 * gizmo's pill stays left-to-right in both: it holds a NUMBER and a confirm/cancel pair, neither of
+	 * which is prose, and its placement is solved in canvas pixels against the item's own silhouette -
+	 * a mirrored gizmo would move the buttons away from the thing they belong to. What this does move is
+	 * the loading card and every sentence the frame draws.
+	 */
+	dir?: ViewerTextDirection
+	/** See {@link ViewerLabels}. */
+	labels?: ViewerLabels
+}
+
+export type ViewerTextDirection = 'ltr' | 'rtl'
+
+/**
+ * The frame's user-visible copy. Anything you leave out stays English.
+ *
+ * *** WHAT IS DELIBERATELY NOT HERE: the instruction card, the protocol-mismatch card and every
+ * `onError` message. *** Those are addressed to YOU rather than to your user - they say a link did not
+ * decode, or that this package is a version behind the embed - and a translated diagnostic is a
+ * diagnostic you cannot paste into a search. They stay in English on purpose.
+ *
+ * Each string is at most 64 characters, must be non-empty and may not contain control characters. A
+ * label that breaks any of those is dropped, named through {@link SkinViewerProps.onError} as
+ * `bad-message`, and the English one is used - the frame never truncates a string to fit.
+ */
+export type ViewerLabels = {
+	/** The gizmo's confirm button, which has an icon and no text of its own. Default `'Confirm'`. */
+	confirm?: string
+	/** The gizmo's cancel button. Default `'Cancel'`. */
+	cancel?: string
+	/**
+	 * The sticker's scratch field on the gizmo pill - the word ON it and its accessible name. Default
+	 * `'Wear'`. Uppercased by the frame's own type styling, so send it in your normal case.
+	 */
+	wear?: string
+	/** The charm's template field, on the same terms as {@link wear}. Default `'Seed'`. */
+	seed?: string
+	/** The loading card, and the spinner's accessible name. Default `'Loading'`. */
+	loading?: string
+	/**
+	 * The card shown while a VIEW CHANGE settles. Default `'Loading {view} view'`.
+	 *
+	 * `{view}` is replaced with the view's own name - `Gun`, `Hands` or `Agent`. *** THE PLACEHOLDER IS
+	 * OPTIONAL, AND LEAVING IT OUT IS HOW YOU AVOID AN ENGLISH WORD IN YOUR SENTENCE: *** those three
+	 * names are the frame's and are not translatable, so a host that does not want them writes a
+	 * sentence without the placeholder and loses nothing but the which-view detail.
+	 */
+	loadingView?: string
+	/**
+	 * The notice over a COLLECTIBLE whose 3D model we have not published yet, where the viewer shows the
+	 * item's in-game icon instead. Default `'This item's 3D model has not been published yet - showing
+	 * the in-game icon instead.'`
+	 *
+	 * The only sentence in this list rather than a word, and the only one a shopper reads without
+	 * touching anything - which is why it is here and the instruction cards are not.
+	 */
+	noModel?: string
+}
+
+/**
+ * *** THE GROUPS ARE THE ONES THE FRAME SPEAKS, AND NO MORE. ***
  *
  * The design notes also sketch `autoRotation` and `sound`. They are deliberately absent: the
  * `/frame` protocol carries neither today, so a prop for them would be a prop that silently does
@@ -512,6 +594,8 @@ export type ViewerSettings = {
 	quality?: ViewerQualitySettings
 	environment?: ViewerEnvironmentSettings
 	overlays?: ViewerOverlaySettings
+	/** See {@link ViewerLocaleSettings}. Absent is English, left-to-right. */
+	locale?: ViewerLocaleSettings
 }
 
 /**
