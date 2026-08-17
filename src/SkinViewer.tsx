@@ -443,6 +443,28 @@ export const SkinViewer = (props: SkinViewerProps) => {
 					// The frame paints nothing of its own, so the canvas composites over the host's page.
 					// Without this a browser's default white iframe background would sit in between.
 					background: 'transparent',
+					/*
+					 * *** AND `background: transparent` IS NOT ENOUGH ON ITS OWN. *** A dark-themed host is
+					 * the common case, and it defeats the line above through a rule almost nobody has read.
+					 *
+					 * `color-scheme` INHERITS. A host that sets `color-scheme: dark` anywhere above this
+					 * element - and every Tailwind, NextUI, MUI or shadcn dark theme does, usually on
+					 * `<html>` - passes it down to this iframe. The frame's own document computes `normal`.
+					 * CSS Color Adjust says that when an iframe's used colour scheme differs from its
+					 * embedder's, the UA must render the iframe OPAQUE in its own scheme's canvas colour,
+					 * and for `normal` that colour is white.
+					 *
+					 * The result is a white plate behind the item THAT NEITHER DOCUMENT CAN SEE, because the
+					 * browser paints it between them: every element on both sides still computes
+					 * `rgba(0, 0, 0, 0)`, so a host debugging it finds nothing. One integrator lost most of a
+					 * day to it, walking the whole ancestor chain twice before instrumenting the UA rule.
+					 *
+					 * Pinning `normal` matches what the frame computes, which is the entire requirement, and
+					 * it is deterministic: `normal` resolves light on both sides whatever the visitor's OS is
+					 * set to. A host that wants a plate behind the item still puts one on the element it
+					 * wraps this in.
+					 */
+					colorScheme: 'normal',
 					display: 'block',
 				}}
 			/>
