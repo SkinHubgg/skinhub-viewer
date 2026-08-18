@@ -209,6 +209,77 @@ field inside `?i=`, because the explicit one is the more specific statement.
 **Omitting `glove` is not "bare hands".** Every agent ships a default pair of their own, and that is
 what you get.
 
+### Which side of the item faces you
+
+| parameter | values | default |
+|---|---|---|
+| `side` | a name from the table below, per subject | the framing the viewer already opens on |
+| `yaw` | degrees, unbounded, wraps | `0` |
+| `pitch` | degrees, `-90`..`90` (`-89`..`89` on a sticker, charm, pin, pair of gloves or operator - and an operator narrows it further, see below) | `0` |
+
+**One rule: `side` sets the origin, `yaw` and `pitch` are offsets from it.** There is no precedence
+table.
+
+```
+?side=right                 the right flank, square on
+?side=right&yaw=15          the three-quarter shot of the right flank
+?yaw=15                     15 degrees off whatever the view already showed
+?side=muzzle&pitch=20       down the barrel, from slightly above
+```
+
+**`side` names the side of the *item*, in the item's own frame.** A weapon's `left` is the left as the
+shooter holds it - never the screen's left, and never where the camera is standing. ("The camera stands
+on the item's left" and "you see the item's left flank" are the same picture.)
+
+| subject | `side` accepts | already showing |
+|---|---|---|
+| a gun | `left`, `right`, `muzzle`, `stock`, `top`, `bottom` | `left` |
+| a knife | `left`, `right`, `tip`, `handle`, `top`, `bottom` | `right` |
+| a pair of gloves | `back`, `palm`, `top`, `bottom` | `back` |
+| a sticker, charm or pin | `front`, `back`, `top`, `bottom` | `front` |
+| an operator | `front`, `right`, `back`, `left` | `front` |
+| `view=hands` | nothing - the first-person camera is welded to the eye | - |
+
+**Naming the side you are already looking at is a no-op** - `?side=left` on a rifle screenshots to the
+same bytes as no parameter at all, and the same holds for `?side=right` on a knife, `?side=back` on a
+pair of gloves and `?side=front` on a sticker.
+
+**An explicit `?yaw=0` is *not* the same as leaving it out.** Absent means "leave the framing alone";
+a number - including zero - **pins** the pose. That only matters if you also let the visitor drag
+(`?orbit=1`), where a pinned pose snaps back.
+
+**A knife's default side is `right` and a gun's is `left`, and that is not a typo.** The viewer lays
+every model's longest axis across the screen with its flattest face toward you, and which of the two
+faces that turns out to be depends on the model's own proportions. It is measured per model rather than
+assumed from the name, which is why `side` is a word and not a number: `left` is `yaw=0` on an AK-47 and
+`yaw=180` on a Karambit. `muzzle` and `tip` are the same answer in two vocabularies, as are `stock` and
+`handle`; both spellings are accepted on both kinds.
+
+**Signs.** Positive `yaw` sweeps the face you are looking at toward the screen's **right** - the same
+direction `?rotatedir=Right` turns. Positive `pitch` brings the **top toward you**, i.e. you look down
+on the item.
+
+**An operator clamps `pitch` much harder than the table says.** That view keeps its camera near eye
+level on purpose - a figure shot from far above or below reads as a bug rather than as a choice - so a
+large `pitch` there lands at the edge of its own range instead of where you asked. `yaw` is unaffected.
+
+**A `side` that means nothing for what is on screen is reported and the item is still drawn** - see
+§8. `?side=left` on a pair of gloves, or any `side` in the `hands` view, leaves the framing alone and
+names itself in `problems`. It is deliberately not an error: a catalogue sweep that sets `side` once
+should not lose whole batches on the rows it does not apply to. **Any `yaw`/`pitch` beside it still
+applies.**
+
+**Two things it does not do.** It does **not** re-fit the camera, so an end-on shot (`?side=muzzle`)
+frames a rifle inside the silhouette its side-on view was fitted to - use `?zoom=` to tighten it. And on
+a gun or a knife, `?pitch=` is **silently dropped while `?autorotate=1` is on**, because a turntable
+composes from the yaw alone or the muzzle traces a cone instead of turning.
+
+**Where the light is.** A gun and a knife turn *the item*, so every side of them is lit by the same
+calibrated key light. Every other subject moves *the camera* - which is what its own drag does - and the
+key light is fixed in the world, so `?side=back` on an operator is a **backlit** shot where `?side=right`
+on a rifle is not. That is a real difference between the rows above; it is worth a test render before you
+ship a grid of them.
+
 ---
 
 ## 5. Looks and performance
@@ -505,6 +576,25 @@ problems: [
   '?time=Dusk: expected Day or Night',
 ]
 ```
+
+**`?side=` has a second kind of problem, and it is the one you will actually meet.** A misspelling is
+reported like anything else; a *real* side name that means nothing for the subject on screen is reported
+too, and the frame renders anyway:
+
+```
+?view=hands&side=left
+```
+
+```js
+problems: [
+  'settings.camera.side: "left" means nothing for this subject and was ignored - the rest of the frame '
+  + 'was rendered. Accepted here: nothing - the first-person camera is welded to the eye, so there is '
+  + 'no side to choose.',
+]
+```
+
+It is reported **when the combination first becomes true**, not on every patch - so a host streaming
+float updates with an inapplicable `side` set gets one message, not sixty a second.
 
 Booleans follow one rule everywhere: **`0` is off, anything else present is on, absent means "leave it
 alone".**

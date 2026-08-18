@@ -175,6 +175,13 @@ viewer.problems  // anything the embed rejected about the URL we built
 viewer.reload()
 ```
 
+## Commercial use
+
+The viewer is free to use. The embed draws a small SkinHub logo in the top-left corner of the frame.
+
+If a company wants to use it with no credit and no logo, that is a monthly fee. Email
+contact@skinhub.gg and we will put a price offer together.
+
 ## Troubleshooting
 
 **A CORS error fetching the catalogue.** `cdn.skinhub.gg` does not send
