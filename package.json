@@ -1,6 +1,6 @@
 {
 	"name": "@skinhub/viewer",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "React wrapper for the SkinHub CS2 skin viewer embed — props in, postMessage out. No three.js, no renderer, no asset bundle; React is the only peer.",
 	"type": "module",
 	"main": "dist/index.js",
