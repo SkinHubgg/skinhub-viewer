@@ -796,6 +796,14 @@ export type SkinViewerProps = ViewerSubject & {
 	 * frame. That is the honest implementation and it has one consequence worth knowing: an opaque node
 	 * hides the frame's own loading card rather than replacing it.
 	 *
+	 * *** PASSING IT ALSO TELLS THE FRAME TO DRAW NO LOADING TREATMENT OF ITS OWN, and that half is not a
+	 * nicety - it is the only thing that makes this prop usable. *** The frame's scrim and spinner are
+	 * painted INSIDE the iframe, so an overlay on our side lands on top of them rather than instead of
+	 * them: the integrator gets their skeleton over SkinHub's dark plate. Nothing available from out here
+	 * removes it - opacity, z-index and hiding the frame were each tried, in that order, by the first
+	 * integrator to meet this - so the component sends {@link SkinViewerProps.hostLoading} for you, on the
+	 * `<iframe src>` itself, in time for the first paint.
+	 *
 	 * Omitted falls through to the frame's own, which is a reasonable default and is what the SkinHub
 	 * app shows.
 	 */
@@ -807,6 +815,24 @@ export type SkinViewerProps = ViewerSubject & {
 	 * Omitted leaves the frame's own card, which names the failure.
 	 */
 	fallback?: ReactNode | ((error: SkinViewerError) => ReactNode)
+	/**
+	 * *** "DRAW NO LOADING TREATMENT AT ALL." NORMALLY YOU DO NOT PASS THIS - {@link
+	 * SkinViewerProps.loading} SETS IT. ***
+	 *
+	 * The frame renders no scrim, no spinner and no label; it still decides when the picture may be seen,
+	 * and its canvas still fades in when it is ready. Reach for it directly in one case: you want the box
+	 * to stay EMPTY while the item loads - your own layout already says something, or a placeholder of any
+	 * kind is worse than nothing there.
+	 *
+	 * `hostLoading={false}` alongside a `loading` node is the other direction and is honoured too: the
+	 * frame keeps its own treatment and yours is drawn over it. That is almost never what you want and is
+	 * allowed rather than recommended.
+	 *
+	 * *** IT TRAVELS ON THE URL, so it is right on the FIRST PAINT *** - which is the whole reason it is a
+	 * boolean and not part of the node: the cold load is the longest wait and the one a visitor is
+	 * guaranteed to see.
+	 */
+	hostLoading?: boolean
 
 	/* ── Escape hatches ────────────────────────────────────────────────────────────────────── */
 	/**

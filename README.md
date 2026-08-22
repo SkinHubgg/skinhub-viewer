@@ -70,7 +70,8 @@ Exactly one subject is required - `item`, `inspectLink`, `sticker`, `charm`, `co
 | `onChange` | `(item) => void` | - | the user dragged a sticker or the charm - **carries ids, not names**, see below |
 | `onResize` | `({ width, height, dpr }) => void` | - | the canvas box changed |
 | `onEditingSlotChange` | `(slot) => void` | - | |
-| `loading` / `fallback` | `ReactNode` | - | your skeleton, and your empty state on error |
+| `loading` / `fallback` | `ReactNode` | - | your skeleton, and your empty state on error. A `loading` node also switches the frame's own backdrop and spinner off, so yours is not drawn on top of ours |
+| `hostLoading` | `boolean` | implied by `loading` | draw **no** loading treatment in the frame. Pass it on its own to leave the box empty while the item loads |
 | `className` / `style` / `title` | | | on the wrapper |
 | `handle` | `SkinViewerHandle` | - | from `useSkinViewer()` |
 

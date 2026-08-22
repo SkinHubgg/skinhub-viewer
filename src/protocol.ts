@@ -185,6 +185,21 @@ export type FrameState = {
 	settings: FrameSettings
 	interactions: FrameInteractions
 	editingSlot: number
+	/**
+	 * *** "THE HOST IS DRAWING ITS OWN LOADING TREATMENT - DRAW NONE OF YOURS." `?hostloading=1`. ***
+	 *
+	 * `false` is the frame's own cover: a scrim, a spinner and a label. `true` renders that layer EMPTY -
+	 * no fill, no blur, no spinner, no words - and changes nothing else about the wait: the frame still
+	 * decides WHEN the picture may be seen, and its canvas still fades in when it is ready.
+	 *
+	 * *** IT IS THE PART OF `SkinViewerProps.loading` THAT FITS THROUGH THE WIRE, AND WHY IT HAD TO
+	 * EXIST. *** `loading` is a React node, drawn on OUR side, over the iframe. The frame's own scrim is
+	 * painted INSIDE that iframe, underneath ours, and nothing available from out here removes it -
+	 * opacity, z-index and hiding the frame were all tried by the first integrator to hit this, in that
+	 * order, none of them worked, and they could not have. So the component sets this whenever you pass
+	 * `loading`; see the prop.
+	 */
+	hostLoading: boolean
 }
 
 /**
@@ -208,6 +223,8 @@ export type FramePatch = {
 	settings?: FrameSettings
 	interactions?: FrameInteractions
 	editingSlot?: number
+	/** See {@link FrameState.hostLoading}. A host may also change its mind after boot, so it is a patch field. */
+	hostLoading?: boolean
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════

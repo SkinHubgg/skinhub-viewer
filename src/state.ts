@@ -90,7 +90,32 @@ export type DesiredState = {
 	settings?: FrameSettings
 	interactions?: FrameInteractions
 	editingSlot?: number
+	/**
+	 * *** THE SECOND FIELD THAT IS ALWAYS SET, AND FOR THE SAME REASON THE SUBJECT IS: BOTH DIRECTIONS
+	 * HAVE TO BE EXPRESSIBLE. *** A host that stops passing `loading` is asking for the frame's own
+	 * treatment back, and a diff can only say that if there is a value to compare against. {@link
+	 * frameUrl} still declines to write `?hostloading=0`, so the URL keeps this file's promise about
+	 * defaults - it is our default and it stays ours to change.
+	 */
+	hostLoading: boolean
 }
+
+/**
+ * *** "IS THE HOST DRAWING THE LOADING TREATMENT?" AND PASSING `loading` IS THE STATEMENT. ***
+ *
+ * An integrator who hands us a skeleton has said everything there is to say; making them ALSO flip a
+ * second switch would mean their overlay lands on the frame's scrim until they find the note that says
+ * so - which is exactly the state the first integrator spent four rounds of fixes in. So the node
+ * implies the flag, and {@link SkinViewerProps.hostLoading} exists for the two cases the node cannot
+ * express: "draw nothing at all" (`true`, no node) and "draw yours under mine" (`false`, with one).
+ *
+ * *** `null`, `undefined` AND `false` ARE NOT NODES AND DO NOT COUNT, *** because `loading={busy &&
+ * <Spinner />}` is ordinary React and on the falsy render the host is drawing nothing - which is
+ * indistinguishable from not having asked. An explicit `hostLoading` settles that case for a host that
+ * means it.
+ */
+const hostDrawsLoading = (props: Partial<SkinViewerProps>): boolean =>
+	props.hostLoading ?? (props.loading !== undefined && props.loading !== null && props.loading !== false)
 
 const HELP_FOR: Record<SkinViewerError['code'], HelpReason | null> = {
 	'no-item': 'no-item',
@@ -117,6 +142,7 @@ export const resolveState = (props: Partial<SkinViewerProps>): DesiredState => {
 	const settings = toFrameSettings(props.settings)
 	/* Everything true of every subject. Hoisted so the two returns below cannot drift apart. */
 	const common = {
+		hostLoading: hostDrawsLoading(props),
 		...(props.view !== undefined && { view: props.view }),
 		...(props.agent !== undefined && { agent: props.agent }),
 		...(props.gloves !== undefined && { gloves: props.gloves }),
@@ -338,6 +364,19 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 	flag(params, 'dragcharm', desired.interactions?.dragCharm)
 	if (desired.editingSlot !== undefined) params.set('slot', String(desired.editingSlot))
 
+	/*
+	 * *** "DRAW NONE OF YOUR LOADING TREATMENT" - ON THE URL, WHICH IS THE ONLY PLACE IT CAN DO ITS JOB. ***
+	 *
+	 * The cold load is the longest wait in the whole product and the one a visitor is guaranteed to see, so
+	 * a flag that only rode a `set` message would arrive after the spinner it exists to remove. Same
+	 * argument as the labels above, one severity up: a label in the wrong language for one round trip is a
+	 * flicker, and this one is somebody else's brand on a customer's product page.
+	 *
+	 * WRITTEN ONLY WHEN TRUE, like `?subject=`: `?hostloading=0` is the frame's default, and freezing our
+	 * default into a customer's `<iframe src>` is the thing this file is careful never to do.
+	 */
+	if (desired.hostLoading) params.set('hostloading', '1')
+
 	const expressed: DesiredState =
 		item && !desired.inspectPayload && item.stickers ? { ...desired, item: { ...item, stickers: undefined } } : desired
 
@@ -491,6 +530,18 @@ export const diffState = (previous: DesiredState, next: DesiredState): FramePatc
 
 	if (next.editingSlot !== undefined && next.editingSlot !== previous.editingSlot) {
 		patch.editingSlot = next.editingSlot
+		changed = true
+	}
+
+	/*
+	 * *** BOTH DIRECTIONS, WHICH IS WHY IT IS A PLAIN COMPARISON AND NOT AN `undefined` GUARD. *** A host
+	 * that stops passing `loading` mid-session - a skeleton behind a feature flag - is asking for the
+	 * frame's own treatment back, and this is the only sentence that says it. It is NOT in
+	 * {@link coversCanvas}: nothing about the picture changed, so a host toggling it must not be shown a
+	 * loading state for having done so.
+	 */
+	if (next.hostLoading !== previous.hostLoading) {
+		patch.hostLoading = next.hostLoading
 		changed = true
 	}
 

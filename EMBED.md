@@ -332,6 +332,33 @@ combinations are supported.
 **If you turn dragging on, listen for the `change` event** (below), or you will not be able to save
 what your user did.
 
+### Your own loading treatment
+
+| parameter | default | |
+|---|---|---|
+| `hostloading` | `0` | `1` draws **no** loading treatment inside the frame - no backdrop, no spinner, no label |
+
+While an item is loading the viewer covers its canvas with a dark scrim and a spinner. That is right on
+skinhub.gg and wrong in the middle of somebody else's product page, so **if you are drawing your own
+skeleton, say so and ours disappears**:
+
+```
+?weapon=weapon_ak47&paint=1449&hostloading=1
+```
+
+**It removes the treatment, not the wait.** The frame still decides when the picture may be seen and
+still fades its canvas in when the item is textured - so between your `<iframe>` appearing and the
+`ready` event, the frame is transparent and your page shows through it. Draw something there or the box
+looks empty. Listen for `ready` to take it down.
+
+**Why this is a parameter and not something you can do from outside.** Our scrim is painted *inside* the
+iframe; anything you draw is in your own document, on top. There is no opacity, `z-index`, `isolation` or
+`visibility` trick that removes a layer from another origin's document - the first integrator to hit this
+tried three of them before we added this flag. One parameter, on the `src`, in time for the first paint.
+
+**In React you never pass it**: `@skinhub/viewer` sets it whenever you pass a `loading` node. Pass
+`hostLoading` yourself only if you want the box to stay empty while it loads.
+
 ### The viewer's own words, and which way they read
 
 The viewer draws a few strings of its own: confirm and cancel on a gizmo, the words on its number
@@ -454,6 +481,7 @@ set({
   },
   interactions: { orbit, zoom, dragStickers, dragCharm },
   editingSlot: -1,
+  hostLoading: false,
 })
 ```
 
@@ -690,6 +718,9 @@ Honest list, so none of it is discovered late.
 - **Custom loading and error UI inside the frame.** Our React component takes `loading` and `fallback`
   slots; a React element cannot cross a `postMessage` boundary. Draw your own skeleton over the iframe
   and remove it on `ready`.
+  **You can at least switch ours off** - `?hostloading=1`, or `hostLoading` in the patch - so yours is
+  not sitting on top of our backdrop. See §5. Turning *ours* off is expressible; handing us *yours* is
+  not.
 - **Click-through.** See §9.
 - **Server-side rendering.** The viewer is WebGL; there is no server-rendered fallback image.
 - **Render to an image.** There is no `capture()`: the canvas runs without a preserved drawing buffer,

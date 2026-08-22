@@ -83,6 +83,7 @@ const wire = () => ({
 		'settings',
 		'interactions',
 		'editingSlot',
+		'hostLoading',
 	]),
 	patch: keysOf<FramePatch>()([
 		'subject',
@@ -96,6 +97,7 @@ const wire = () => ({
 		'settings',
 		'interactions',
 		'editingSlot',
+		'hostLoading',
 	]),
 
 	/* The five things the viewer can show. `weapon` covers gloves too - a glove is a `weaponType`. */

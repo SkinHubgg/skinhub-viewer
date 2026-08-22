@@ -417,3 +417,61 @@ describe('the standalone subjects', () => {
 		expect(state.help).toBe('no-item')
 	})
 })
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════
+ * "DRAW NONE OF YOUR LOADING TREATMENT"
+ *
+ * *** THE POINT OF THESE IS THAT THE INTEGRATOR NEVER HAS TO KNOW THE FLAG EXISTS. *** Passing
+ * `loading` is the whole statement, it has to reach the `<iframe src>` (a cold load is the wait
+ * nobody can miss), and a host that passes nothing must be left exactly as they are.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+describe('hostLoading', () => {
+	test('a host that says nothing keeps the frame\'s own treatment, and its URL says nothing either', () => {
+		expect(resolveState(props()).hostLoading).toBe(false)
+		expect(query().has('hostloading')).toBe(false)
+	})
+
+	/** The one that matters: the flag is on the FIRST PAINT, not one round trip later. */
+	test('passing `loading` writes ?hostloading=1 on the src itself', () => {
+		expect(resolveState(props({ loading: 'spinner' })).hostLoading).toBe(true)
+		expect(query({ loading: 'spinner' }).get('hostloading')).toBe('1')
+	})
+
+	/**
+	 * `loading={busy && <Spinner />}` is ordinary React, and on the falsy render the host draws nothing -
+	 * which is indistinguishable from not having asked. See `hostDrawsLoading`.
+	 */
+	test('a falsy loading node is not a statement', () => {
+		expect(resolveState(props({ loading: false })).hostLoading).toBe(false)
+		expect(resolveState(props({ loading: null })).hostLoading).toBe(false)
+	})
+
+	test('and it can be said on its own, for a host that wants an empty box', () => {
+		expect(resolveState(props({ hostLoading: true })).hostLoading).toBe(true)
+		expect(query({ hostLoading: true }).get('hostloading')).toBe('1')
+	})
+
+	/** Explicit beats implied in BOTH directions - see the prop. */
+	test('an explicit false alongside a node keeps the frame\'s own treatment', () => {
+		expect(resolveState(props({ loading: 'spinner', hostLoading: false })).hostLoading).toBe(false)
+		expect(query({ loading: 'spinner', hostLoading: false }).has('hostloading')).toBe(false)
+	})
+
+	test('a host that stops passing `loading` gets the frame\'s treatment back over the wire', () => {
+		const withSkeleton = resolveState(props({ loading: 'spinner' }))
+		const without = resolveState(props())
+		expect(diffState(withSkeleton, without)).toEqual({ hostLoading: false })
+		expect(diffState(without, withSkeleton)).toEqual({ hostLoading: true })
+	})
+
+	/** Nothing about the picture changed, so toggling it must not raise the caller's loading slot. */
+	test('toggling it does not cover the canvas', () => {
+		const next = resolveState(props({ loading: 'spinner' }))
+		expect(coversCanvas(diffState(resolveState(props()), next) ?? {}, next)).toBe(false)
+	})
+
+	test('restating the same node produces no patch at all', () => {
+		expect(diffState(resolveState(props({ loading: 'spinner' })), resolveState(props({ loading: 'spinner' })))).toBeUndefined()
+	})
+})
