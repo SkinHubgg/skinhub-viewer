@@ -332,6 +332,26 @@ combinations are supported.
 **If you turn dragging on, listen for the `change` event** (below), or you will not be able to save
 what your user did.
 
+### The room the item stands in
+
+An HDRI lights the item, and can also be drawn behind it. All six are optional; the defaults are what
+skinhub.gg itself uses.
+
+| parameter | default | |
+|---|---|---|
+| `hdri` | the shipped studio probe | which environment lights the item |
+| `hdriint` | `1` | its intensity, as a multiplier |
+| `hdribg` | `0` | `1` draws the environment **behind** the item instead of a flat backdrop |
+| `hdriyaw` | `0` | turns the environment horizontally, in degrees |
+| `hdripitch` | `0` | tilts it, in degrees |
+| `hdrispin` | `1` | `0` **holds the backdrop still** while the camera orbits |
+
+`hdrispin` is worth a word. When the camera goes round the item - the turntable, `?az=`, or a drag on a
+sticker, charm or operator - the room sweeps past behind it, which reads as the item turning inside a
+real space. Set `0` and the backdrop stays put instead. It has no effect when there is no backdrop to
+hold, and it governs **every** camera orbit rather than the turntable alone, because the lock reads the
+camera's azimuth and cannot tell what moved it.
+
 ### Your own loading treatment
 
 | parameter | default | |
