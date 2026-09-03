@@ -58,7 +58,14 @@ export type SkinViewerSticker = {
 	wear?: number
 	/** Degrees, any value; `370` renders as `10`. Default `0`. */
 	rotation?: number
-	/** -0.5..0.5. Default `0` - the slot's authored position. */
+	/**
+	 * How far from the slot's authored position to sit, in the game's own offset space. Default `0`.
+	 *
+	 * NOT bounded to -0.5..0.5, which this used to say. That range is the material editor's slider,
+	 * not a limit CS2 enforces - 160 of the 316 authored slots have legal area outside it. The real
+	 * bound is the weapon's authored `StickerMarkup` region, which is not a square, and the frame
+	 * applies it to a drag for you.
+	 */
 	offsetX?: number
 	offsetY?: number
 }

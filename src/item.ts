@@ -84,9 +84,13 @@ export const toSlots = (
 			slot,
 			sticker_id: sticker.id,
 			wear: sticker.wear ?? 0,
-			// The game treats an unset scale as 1 and an inspect link cannot carry `scale <= 0`. It is not
-			// on the public surface because nothing in CS2 sets it per sticker.
-			scale: 1,
+			// `scale` is not on the public surface because nothing in CS2 sets it per sticker, and 0 is
+			// how the wire says "no size chosen" - what the protobuf decodes to when the field is
+			// ABSENT, which is every item CS2's own sticker UI has ever made. The frame never reads it
+			// (its `stickerSlots.ts` takes `uvScale` from the weapon's markup and says so on line 9),
+			// and `@skinhub/cdn` >= 0.3.0 omits a non-positive scale from a link rather than refusing
+			// to build one - so a link built here now carries exactly what CS2 would carry.
+			scale: 0,
 			rotation: sticker.rotation ?? 0,
 			offset_x: sticker.offsetX ?? 0,
 			offset_y: sticker.offsetY ?? 0,
@@ -103,6 +107,10 @@ export const toSlots = (
 			offset_x: charm.offset?.[0] ?? 0,
 			offset_y: charm.offset?.[1] ?? 0,
 			offset_z: charm.offset?.[2] ?? 0,
+			// The sticker sealed inside a `Charm | Sticker Slab`. 0 is "nothing sealed", which is every
+			// charm this package can be handed: `SkinViewerCharm` has no field for it, because a slab is
+			// a distinct econ item rather than a property of a charm someone hangs on a gun.
+			wrapped_sticker: 0,
 		}
 
 	return slots
@@ -377,8 +385,10 @@ export const toPublicItem = (item: FrameItem): SkinViewerItem => {
  *
  *   - `stattrak: 0` is a REAL, freshly-minted counter and `false` is no module. One boolean and one
  *     count, not one nullable number.
- *   - an unset sticker `scale` is `1`, not `0`. The WeaponPaints row default is `0` meaning "default",
- *     and an encoder rejects `scale <= 0`, so passing it through produces a link that will not build.
+ *   - an unset sticker `scale` is `0`, meaning "no size chosen", and the encoder OMITS it rather than
+ *     refusing the link. `g_vStickerNScale` is an inverse uv scale authored 4.63..35.0, so 1 was never
+ *     an identity - it is a sticker five to thirty-five times too large, on a field the frame and the
+ *     game both ignore.
  *   - a charm's seed rides in `pattern`, because the keychain message is the sticker message reused.
  *
  * That list is the argument for these living here rather than in a docs snippet: they are the same
