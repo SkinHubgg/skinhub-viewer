@@ -1,5 +1,6 @@
 /**
- * The 63-row table between a Steam defindex and the renderer's model key.
+ * The 64-row table between a Steam defindex and the renderer's model key (63 from the 2026-08-15
+ * `skins.json`, plus the C4, which only the 1.41.8.2 export's `skins.json` carries).
  *
  * *** THIS IS THE ONE PIECE OF DATA THE PACKAGE CARRIES RATHER THAN FETCHES, *** and the reason is in
  * `item.ts`: an inspect link says `defindex: 7` and the renderer wants `weapon_ak47`. Being a table
@@ -57,6 +58,18 @@ describe('the table', () => {
 		expect(weaponIdForDefindex(7)).toBe('weapon_ak47')
 		expect(weaponIdForDefindex(9)).toBe('weapon_awp')
 		expect(defindexForWeaponId('weapon_ak47')).toBe(7)
+	})
+
+	/**
+	 * THE C4, since CS2 1.41.8.2 (2026-09-22) - a stickered C4 is an item with an inspect link, and its
+	 * `defindex: 49` used to fall through to `unknown-weapon`. It is the one row added by hand, because
+	 * the `skins.json` the table was derived from predates the 1.41.8.2 export that carries the C4.
+	 */
+	test('the C4 resolves both ways', () => {
+		expect(weaponIdForDefindex(49)).toBe('weapon_c4')
+		expect(defindexForWeaponId('weapon_c4')).toBe(49)
+		expect(isKnownWeaponId('weapon_c4')).toBe(true)
+		expect(isGloveId('weapon_c4')).toBe(false)
 	})
 
 	test('an unknown defindex is undefined rather than a guess', () => {

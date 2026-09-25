@@ -77,6 +77,7 @@ const wire = () => ({
 		'sticker',
 		'charm',
 		'collectible',
+		'pet',
 		'view',
 		'agent',
 		'gloves',
@@ -91,6 +92,7 @@ const wire = () => ({
 		'sticker',
 		'charm',
 		'collectible',
+		'pet',
 		'view',
 		'agent',
 		'gloves',
@@ -100,11 +102,32 @@ const wire = () => ({
 		'hostLoading',
 	]),
 
-	/* The five things the viewer can show. `weapon` covers gloves too - a glove is a `weaponType`. */
-	subjects: membersOf<FrameState['subject']>()(['weapon', 'sticker', 'charm', 'collectible', 'agent']),
+	/* The six things the viewer can show. `weapon` covers gloves too - a glove is a `weaponType`. */
+	subjects: membersOf<FrameState['subject']>()(['weapon', 'sticker', 'charm', 'collectible', 'agent', 'pet']),
 	sticker: keysOf<FrameState['sticker']>()(['id', 'wear']),
 	charm: keysOf<FrameState['charm']>()(['id', 'pattern']),
 	collectible: keysOf<FrameState['collectible']>()(['id']),
+	/* 0.4.1: the chicken pets. `id` and a breed's drawn `stage` are identity, the rest is cheap - see `FramePet`. */
+	/* 0.4.2 adds the photo booth (`hat`, `backdrop`, `light`, `effect`) and the names (`names`,
+	   `nameLabel`) - all cheap, additive under protocol 2 like `pet` itself was in 0.4.1: a frame that
+	   predates them names them as unknown keys and draws the bird without them. */
+	pet: keysOf<FrameState['pet']>()([
+		'id',
+		'stage',
+		'variant',
+		'petSeed',
+		'pose',
+		'look',
+		'hat',
+		'backdrop',
+		'light',
+		'effect',
+		'names',
+		'nameLabel',
+	]),
+	petStages: membersOf<NonNullable<FrameState['pet']['stage']>>()(['egg', 'chick', 'pullet', 'hen']),
+	petLook: keysOf<NonNullable<FrameState['pet']['look']>>()(['attributes', 'shape']),
+	petNames: keysOf<NonNullable<FrameState['pet']['names']>>()(['chick', 'pullet', 'hen']),
 
 	item: keysOf<FrameItem>()([
 		'weaponType',
@@ -123,7 +146,7 @@ const wire = () => ({
 	settingsGroups: keysOf<Settings>()(['camera', 'quality', 'environment', 'overlays', 'locale']),
 	camera: keysOf<NonNullable<Settings['camera']>>()(['fov', 'defaultZoom']),
 	quality: keysOf<NonNullable<Settings['quality']>>()(['bloom', 'bloomSpill', 'renderScale', 'antialias', 'shadows']),
-	environment: keysOf<NonNullable<Settings['environment']>>()(['map', 'timeOfDay', 'rain', 'background']),
+	environment: keysOf<NonNullable<Settings['environment']>>()(['map', 'rain', 'background']),
 	overlays: keysOf<Overlays>()(['stickerGizmo', 'charmGizmo', 'gizmoStyle']),
 	gizmoStyle: keysOf<NonNullable<Overlays['gizmoStyle']>>()(['color', 'shadowColor']),
 	locale: keysOf<NonNullable<Settings['locale']>>()(['dir', 'labels']),

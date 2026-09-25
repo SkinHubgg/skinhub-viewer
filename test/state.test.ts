@@ -419,6 +419,139 @@ describe('the standalone subjects', () => {
 })
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
+ * THE PET (0.4.1)
+ * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+describe('the pet subject', () => {
+	const src = (props: Parameters<typeof resolveState>[0]) => {
+		const { src } = frameUrl('https://skinhub.gg', resolveState(props))
+		return new URL(src).searchParams
+	}
+
+	test('names itself and writes its params, never `?seed=`', () => {
+		const params = src({
+			pet: { id: 4, stage: 'pullet', variant: 3, petSeed: 1234, pose: 'chick_idle02', look: { shape: { fatness: 0.7 } } },
+		})
+		expect(params.get('subject')).toBe('pet')
+		expect(params.get('pet')).toBe('4')
+		expect(params.get('stage')).toBe('pullet')
+		expect(params.get('variant')).toBe('3')
+		expect(params.get('petseed')).toBe('1234')
+		expect(params.get('pose')).toBe('chick_idle02')
+		expect(params.get('look')).toBe('fatness:0.7')
+		expect(params.has('seed')).toBe(false)
+	})
+
+	test('a null variant is written empty - the seed decides - and unset fields say nothing', () => {
+		expect(src({ pet: { id: 3, variant: null } }).get('variant')).toBe('')
+		const bare = src({ pet: { id: 3 } })
+		for (const key of ['stage', 'variant', 'petseed', 'pose', 'look']) expect(bare.has(key)).toBe(false)
+	})
+
+	test('the id covers; colour, seed, pose and look are cheap', () => {
+		const on = { view: 'gun' as const, subject: 'pet' as const, pet: { id: 3 } }
+		expect(coversCanvas({ pet: { id: 5 } }, on, { pet: { id: 3 } })).toBe(true)
+		for (const cheap of [{ variant: 2 }, { petSeed: 9 }, { pose: 'x' }, { look: null }])
+			expect(coversCanvas({ pet: cheap }, on, { pet: { id: 3 } })).toBe(false)
+	})
+
+	/**
+	 * *** A BREED'S STAGE COVERS WHEN THE DRAWN STAGE MOVES, AND ONLY THEN. *** Pullet and hen are one
+	 * model, but the frame re-frames the bird and says `ready` again - while a stage the frame clamps
+	 * back to the same picture gets no `ready`, and covering for it would leave `loading` up for good.
+	 */
+	test('a breed covers on pullet <-> hen, and never for a stage that draws the same bird', () => {
+		const at = (id: number, stage?: 'egg' | 'chick' | 'pullet' | 'hen') => ({
+			view: 'gun' as const,
+			subject: 'pet' as const,
+			pet: { id, ...(stage && { stage }) },
+		})
+		expect(coversCanvas({ pet: { stage: 'pullet' } }, at(3, 'pullet'), at(3))).toBe(true)
+		expect(coversCanvas({ pet: { stage: 'hen' } }, at(4, 'hen'), at(4, 'pullet'))).toBe(true)
+		// `{ id: 3 }` is already a hen, and a breed clamps an egg stage to the hen.
+		expect(coversCanvas({ pet: { stage: 'hen' } }, at(3, 'hen'), at(3))).toBe(false)
+		expect(coversCanvas({ pet: { stage: 'egg' } }, at(5, 'egg'), at(5, 'hen'))).toBe(false)
+		// The egg and the chick have one stage each; an unknown id is never guessed at.
+		expect(coversCanvas({ pet: { stage: 'hen' } }, at(1, 'hen'), at(1))).toBe(false)
+		expect(coversCanvas({ pet: { stage: 'pullet' } }, at(2, 'pullet'), at(2))).toBe(false)
+		expect(coversCanvas({ pet: { stage: 'pullet' } }, at(9, 'pullet'), at(9))).toBe(false)
+		// Without the previous state there is nothing to compare, so nothing is claimed.
+		expect(coversCanvas({ pet: { stage: 'pullet' } }, at(3, 'pullet'))).toBe(false)
+	})
+
+	test('a look rebuilt with the same values is not a change', () => {
+		const before = resolveState({ pet: { id: 3, look: { attributes: { $ChickenHue: 0.4 } } } })
+		const same = resolveState({ pet: { id: 3, look: { attributes: { $ChickenHue: 0.4 } } } })
+		expect(diffState(before, same)).toBeUndefined()
+		const moved = resolveState({ pet: { id: 3, look: { attributes: { $ChickenHue: 0.5 } } } })
+		expect(diffState(before, moved)?.pet).toEqual({ look: { attributes: { $ChickenHue: 0.5 } } })
+	})
+
+	test('a zero id is no-item', () => {
+		expect(resolveState({ pet: { id: 0 } }).subjectError?.code).toBe('no-item')
+	})
+
+	/* ── 0.4.2: THE PHOTO BOOTH AND THE NAMES ─────────────────────────────────────────────────── */
+
+	test('the booth and the names ride the src in the frame spelling', () => {
+		const params = src({
+			pet: {
+				id: 3,
+				hat: 'party',
+				backdrop: 'sky',
+				light: '#FFE0C0',
+				effect: 'confetti',
+				names: { chick: 'Pip', hen: 'Henrietta' },
+				nameLabel: true,
+			},
+		})
+		expect(params.get('hat')).toBe('party')
+		expect(params.get('backdrop')).toBe('sky')
+		expect(params.get('light')).toBe('FFE0C0')
+		expect(params.get('fx')).toBe('confetti')
+		expect(params.get('chickname')).toBe('Pip')
+		expect(params.get('henname')).toBe('Henrietta')
+		// Never the short `?name=` - the frame reads it against a stage this host may not have named.
+		expect(params.has('name')).toBe(false)
+		expect(params.has('pulletname')).toBe(false)
+		expect(params.get('namelabel')).toBe('1')
+	})
+
+	test('null is the frame explicit off, and unset says nothing', () => {
+		const off = src({ pet: { id: 3, hat: null, backdrop: null, light: null, effect: null, nameLabel: false } })
+		expect(off.get('hat')).toBe('none')
+		expect(off.get('backdrop')).toBe('none')
+		expect(off.get('light')).toBe('')
+		expect(off.get('fx')).toBe('none')
+		expect(off.get('namelabel')).toBe('0')
+		const bare = src({ pet: { id: 3 } })
+		for (const key of ['hat', 'backdrop', 'light', 'fx', 'name', 'chickname', 'pulletname', 'henname', 'namelabel'])
+			expect(bare.has(key)).toBe(false)
+	})
+
+	test('the booth never covers the canvas', () => {
+		const on = { view: 'gun' as const, subject: 'pet' as const, pet: { id: 3 } }
+		for (const cheap of [
+			{ hat: 'party' as const },
+			{ backdrop: 'blue' as const },
+			{ light: 'ffffff' },
+			{ effect: 'fire' as const },
+			{ names: { hen: 'A' } },
+			{ nameLabel: true },
+		])
+			expect(coversCanvas({ pet: cheap }, on, { pet: { id: 3 } })).toBe(false)
+	})
+
+	test('names rebuilt with the same values are not a change', () => {
+		const before = resolveState({ pet: { id: 3, names: { hen: 'Henrietta' } } })
+		const same = resolveState({ pet: { id: 3, names: { hen: 'Henrietta' } } })
+		expect(diffState(before, same)).toBeUndefined()
+		const moved = resolveState({ pet: { id: 3, names: { hen: 'Henny' } } })
+		expect(diffState(before, moved)?.pet).toEqual({ names: { hen: 'Henny' } })
+	})
+})
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════
  * "DRAW NONE OF YOUR LOADING TREATMENT"
  *
  * *** THE POINT OF THESE IS THAT THE INTEGRATOR NEVER HAS TO KNOW THE FLAG EXISTS. *** Passing

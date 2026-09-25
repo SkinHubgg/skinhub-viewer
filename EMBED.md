@@ -8,9 +8,10 @@ no account, and no signup. Two ways to drive it:
 | **The URL** | an `<iframe src>` | the complete initial picture: item, float, seed, stickers, charm, view, agent, gloves, lighting, quality |
 | **`postMessage`** | ~10 lines of JavaScript | live updates on top of that, plus `ready` / `error` / `change` events |
 
-**Five kinds of item are inspectable**, each with its own parameter: a weapon or glove
+**Six kinds of item are inspectable**, each with its own parameter: a weapon or glove
 (`?weapon=`+`?paint=`), a sticker (`?sticker=`), a charm (`?charm=`), a collectible - pin, coin, medal
-or trophy - (`?collectible=`), and an operator (`?subject=agent&agent=`). See
+or trophy - (`?collectible=`), an operator (`?subject=agent&agent=`), and a chicken pet (`?pet=`, see
+[Chicken pets](#chicken-pets-041)). See
 [the other four subjects](#the-other-four-subjects---a-sticker-a-charm-a-collectible-an-operator).
 
 **The URL alone is a supported, first-class integration.** If your stack is PHP, Rails, Laravel, plain
@@ -102,9 +103,9 @@ it is the whole URL:
 | `sticker` | a `stickers.json` id. **Implies `subject=sticker`** | - |
 | `wear` | that sticker's scratch, `0` (mint) to `1` (scraped off) | `0` |
 | `charm` | a `keychains.json` id. **Implies `subject=charm`** | - |
-| `pattern` | the charm's template - a hue/saturation/brightness adjust on its own albedo, not a different model | `0` |
+| `pattern` | the charm's template, `0` to `100000` - a hue/saturation/brightness adjust on its own albedo, not a different model | `0` |
 | `collectible` | a `collectibles.json` item definition index. **Implies `subject=collectible`** | - |
-| `subject` | `weapon`, `sticker`, `charm`, `collectible`, `agent` - read last, so it always wins | `weapon` |
+| `subject` | `weapon`, `sticker`, `charm`, `collectible`, `agent`, `pet` - read last, so it always wins | `weapon` |
 
 **`?pattern=` and not `?seed=`,** because `seed` on this URL is already the weapon's paint seed.
 
@@ -151,6 +152,81 @@ zoom) applies to all five subjects identically.
 An id of `0`, or one your catalogue does not have, renders **nothing** - deliberately. `sticker_id: 0`
 is how the game itself says "empty slot", and drawing our default AK-47 for it would look exactly like
 a successful render of the wrong item.
+
+### Chicken pets (0.4.1)
+
+The pets CS2 added on 2026-09-22 - the egg, the chick, and the three breeds as a pullet or a hen - are a
+subject of their own, named by `?pet=`:
+
+```
+?pet=1                                         the egg
+?pet=4&stage=pullet                            a Silkie pullet
+?pet=3&stage=hen&variant=2&petseed=1234        a Catalana hen, colour group 2, seed 1234
+```
+
+| parameter | meaning | default |
+|---|---|---|
+| `pet` | the `pet_definitions` id - the item's `pet id` attribute. `1` egg, `2` chick, `3` Catalana, `4` Silkie, `5` Polish. **Implies `subject=pet`** | - |
+| `stage` | `egg`, `chick`, `pullet` or `hen` - the item's `upgrade level`. The three breeds are a `pullet` or a `hen`; an egg and a chick have one stage each | `hen` for a breed |
+| `variant` | the colour group index. Empty (`?variant=`) lets the seed pick it, which is how a real pet gets one | the seed's |
+| `petseed` | the item's `pet seed` attribute, `0` to `4294967295` | `0` |
+| `pose` | a clip name from the pet's own model; with `?pet=` present this is the pet's clip, not an operator pose. On the egg (`pet=1`) only, `chicknegg_hatch01` or `chicknegg_hatch02` plays the hatch - the shell breaks and the chick climbs out (the second is the shorter take). Any other pet idles on those two | the idle |
+| `look` | the look sliders: comma-separated `key:value` pairs, values `0` to `1`, e.g. `$ChickenHue:0.42,fatness:0.7`. A key starting with `$` is a colour attribute, anything else a body shape | the seed's |
+
+**`?petseed=` and not `?seed=`,** for the charm's reason: `seed` on this URL is the weapon's paint seed.
+What a given seed looks like is our closest reconstruction of the game's rule and may differ slightly;
+`variant` and `look` are exact.
+
+Identity is `pet` and `stage`. Changing `pet` loads a different model. A breed's pullet and hen are
+the same model, but the stage changes the body proportions, so moving between them re-frames the bird
+and the frame sends `ready` again, like a new item (the package raises `loading` for it). A stage the
+pet cannot be (`hen` on the egg) draws the stage it can and changes nothing. `variant`, `petseed`,
+`pose` and `look` update in place over `postMessage` (`{ pet: { petSeed: 99 } }`). Pets animate, so a
+render of one is never cached as immutable.
+
+```jsx
+<SkinViewer pet={{ id: 4, stage: 'pullet', variant: null, petSeed: 1234 }} />
+```
+
+#### The photo booth and the names (0.4.2)
+
+What CS2's pet photo booth puts around the bird, and the names the item carries. All of them update in
+place, and none of them is a new item: no `ready` is sent for them.
+
+**A `backdrop` moves the camera; nothing else here does.** Switching one on puts the camera where the
+game's booth camera stands (a little to the bird's right, slightly above), frames the bird looser so a hat
+and the effects fit, and limits dragging (`orbit=1`) to 30 degrees either side of that seat, so the edge
+of the paper never comes into view. If you pin the view yourself (`side`, `yaw` or `pitch`), your seat is
+kept: the looser framing and the drag limit still apply, centred on it. Switching the backdrop off gives
+the camera back.
+
+```
+?pet=3&hat=party&backdrop=blue&fx=confetti              a Catalana hen in a party hat, on blue paper, confetti
+?pet=4&stage=pullet&name=Pippa&namelabel=1              a Silkie pullet called Pippa, name shown above her
+?pet=5&chickname=Pip&henname=Henrietta                  a Polish hen named at two stages
+```
+
+| parameter | meaning | default |
+|---|---|---|
+| `hat` | a booth hat: `helmet`, `armor`, `alien`, `banana`, `glasses`, `nose_glasses`, `party`, `sprout`, `top_hat`, `wizard_hat`. `none` for none. Not drawn on the egg | none |
+| `backdrop` | the photo studio's paper behind the bird: `grey`, `blue`, `green`, `purple`, `yellow`, `brown`, `red`, `black`, `sky`, `abstract` (and `wallpaper`, which the game never offers). `none` for none | none |
+| `light` | the studio key light as six hex digits, e.g. `ffe0c0`. It lights the studio, so it only shows with a `backdrop`. Empty for the booth's own | `fff2e6` |
+| `fx` | a booth effect that replays until cleared: `explosion`, `lightning`, `fire`, `beam`, `lasers`, `sparks`, `confetti`, `bubbles`, `feathers`. `none` for none. Not drawn on the egg. The game offers `beam`, `lasers` and `sparks` from a pullet on; the embed draws what you ask for on a chick too | none |
+| `name` | the name of the stage this URL shows (`stage`, else the pet's own). Not on the egg - an egg cannot be named | - |
+| `chickname`, `pulletname`, `henname` | one name per stage, as the item stores them. They win over `name` | - |
+| `namelabel` | `1` draws the shown stage's name above the bird | `0` |
+
+A name is at most 20 characters (the game's own limit) and loses `{ } < >` and control characters; a
+longer one is cut and the cut is named in `problems`. A stage with no name goes by the nearest named
+one - its own, then the younger stages, then the older ones - the way the game's picture book does.
+
+Over `postMessage` the same fields are `pet.hat`, `pet.backdrop`, `pet.light`, `pet.effect`,
+`pet.names` (`{ chick?, pullet?, hen? }`) and `pet.nameLabel`. `null` switches a booth field off. A
+`names` patch REPLACES the set - send every stage you want kept.
+
+```jsx
+<SkinViewer pet={{ id: 3, hat: 'party', backdrop: 'blue', effect: 'confetti', names: { hen: 'Clucky' }, nameLabel: true }} />
+```
 
 ---
 
@@ -484,18 +560,19 @@ Every message in both directions carries these three fields:
 
 ```js
 set({
-  subject: 'weapon' | 'sticker' | 'charm' | 'collectible' | 'agent',
+  subject: 'weapon' | 'sticker' | 'charm' | 'collectible' | 'agent' | 'pet',
   item:        { weaponType, paintIndex, legacyModel, float, seed, statTrak, nameTag, stickers },
   sticker:     { id, wear },
   charm:       { id, pattern },
   collectible: { id },
+  pet:         { id, stage, variant, petSeed, pose, look, hat, backdrop, light, effect, names, nameLabel },
   view: 'gun' | 'hands' | 'agent',
   agent: { id, pose },
   gloves: { type, paintIndex, float, seed } | null,
   settings: {
     camera:      { fov, defaultZoom },
     quality:     { bloom, bloomSpill, renderScale, antialias, shadows },
-    environment: { map, timeOfDay, rain, background },
+    environment: { map, rain, background },
     overlays:    { stickerGizmo, charmGizmo, gizmoStyle: { color, shadowColor } },
     locale:      { dir, labels: { confirm, cancel, wear, seed, loading, loadingView, noModel } },
   },
@@ -569,6 +646,7 @@ The same split, for the other four subjects:
 | `charm` | `charm.id` | `charm.pattern` |
 | `collectible` | `collectible.id` | *nothing - there is no other field* |
 | `agent` | `agent.id` | `agent.pose` |
+| `pet` | `pet.id`, and `pet.stage` when it moves a breed between pullet and hen | `pet.variant`, `pet.petSeed`, `pet.pose`, `pet.look`, and the booth and names (`pet.hat`, `pet.backdrop`, `pet.light`, `pet.effect`, `pet.names`, `pet.nameLabel`) |
 
 **Changing `subject` always reloads**, in every direction: a weapon and a pin are drawn by different
 renderers, so the picture is rebuilt from nothing.
@@ -611,7 +689,7 @@ A parameter the viewer cannot read is **dropped and named**; it is never repaire
 never blanks the viewer. The list arrives on the `hello` event as `problems`:
 
 ```
-?float=banana&view=sideways&map=Atlantis&time=Dusk&scale=99&glove=nonsense
+?float=banana&view=sideways&map=Atlantis&scale=99&glove=nonsense
 ```
 
 ```js
@@ -621,7 +699,6 @@ problems: [
   '?glove=nonsense: expected type:paintIndex[:float[:seed]]',
   '?scale=99: expected a number in [0.25, 3] or Performance/Balanced/Native',
   '?map=Atlantis: unknown map',
-  '?time=Dusk: expected Day or Night',
 ]
 ```
 

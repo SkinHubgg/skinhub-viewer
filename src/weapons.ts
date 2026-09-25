@@ -16,7 +16,10 @@
  * it is derived from the export itself (`data/skins.json`, `weapon.weapon_id` → `weapon.id`,
  * generated 2026-08-15, verified: 63 distinct defindexes, no defindex mapping to two DIFFERENT
  * weapons — the 20 knives each carry a second `sfui_wpnhud_*` alias for their vanilla row, which
- * `getWeaponModelPath` already resolves to the same model).
+ * `getWeaponModelPath` already resolves to the same model). Plus one hand-added row, the C4
+ * (49 -> `weapon_c4`, since CS2 1.41.8.2 put stickers on it): the 2026-08-15 `skins.json` the other
+ * 63 came from predates the 1.41.8.2 export and has no C4. From that export on it carries a vanilla
+ * `weapon_c4` row with `weapon_id: 49`, so the row is derivable like the rest - 64 rows in all.
  *
  * The alternative is fetching a 4.4 MB `skins.json` to answer "what is 7", which would make the
  * inspect-link path — the one the product exists for — cost four megabytes before the first frame.
@@ -33,7 +36,7 @@
  *
  * This is `skin.weapon.id` in `@skinhub/cdn`'s `skins.json` rows, verbatim — so
  * `<SkinViewer weapon={row.weapon.id} paintIndex={…} />` typechecks against a catalogue row with no
- * conversion. Type it into an editor and autocomplete lists all 71.
+ * conversion. Type it into an editor and autocomplete lists all 72.
  */
 export const WEAPON_IDS = [
 	// Pistols
@@ -77,6 +80,8 @@ export const WEAPON_IDS = [
 	'weapon_xm1014',
 	// Other
 	'weapon_taser',
+	// The C4 - no finish, but stickers, a charm and a name tag since CS2 1.41.8.2. See the defindex table.
+	'weapon_c4',
 	// Knives
 	'weapon_bayonet',
 	'weapon_knife_butterfly',
@@ -117,7 +122,7 @@ export type KnownWeaponId = (typeof WEAPON_IDS)[number]
  * `'weapon_ak47'`.
  *
  * The `(string & {})` arm is deliberate and is not a widening mistake: it keeps autocomplete listing
- * the 71 known ids while still ACCEPTING an id this build has never heard of, so a new weapon in a
+ * the 72 known ids while still ACCEPTING an id this build has never heard of, so a new weapon in a
  * fresh export renders the day it ships rather than the day the package is upgraded. An unknown id
  * that the asset export also does not know resolves to no model, which surfaces as `unknown-weapon`.
  */
@@ -161,6 +166,16 @@ export const WEAPON_ID_BY_DEFINDEX: Readonly<Record<number, KnownWeaponId>> = {
 	38: 'weapon_scar20',
 	39: 'weapon_sg556',
 	40: 'weapon_ssg08',
+	/**
+	 * THE ONE ROW ADDED BY HAND, because the `skins.json` this table was derived from predates the
+	 * 1.41.8.2 export. From that export on, `skins.json` carries a vanilla C4 row (`weapon_id: 49`) and
+	 * this row is derivable like the other 63. CS2 1.41.8.2 (2026-09-22) gave the `c4` prefab
+	 * `weapon_supports_stickers`, so a stickered C4 is now a real item with an inspect link that says
+	 * `defindex: 49` - and without this row it resolved to `unknown-weapon`. `weapon_c4` is the item
+	 * definition's own `name` in `items_game.txt`, and the renderer's model table has carried it since
+	 * the same update.
+	 */
+	49: 'weapon_c4',
 	60: 'weapon_m4a1_silencer',
 	61: 'weapon_usp_silencer',
 	63: 'weapon_cz75a',

@@ -134,7 +134,7 @@ export type FrameLocale = {
 export type FrameSettings = {
 	camera?: { fov?: number; defaultZoom?: number }
 	quality?: { bloom?: number; bloomSpill?: number; renderScale?: number; antialias?: boolean; shadows?: boolean }
-	environment?: { map?: string | null; timeOfDay?: string; rain?: boolean; background?: string }
+	environment?: { map?: string | null; rain?: boolean; background?: string }
 	overlays?: {
 		stickerGizmo?: boolean
 		charmGizmo?: boolean
@@ -158,12 +158,36 @@ export type FrameInteractions = {
  * the person an agent, and an integrator holding a weapon-modifier prop already named `agent` needs a
  * different word for the standalone picture. One rename, in one file.
  */
-export type FrameSubjectKind = 'weapon' | 'sticker' | 'charm' | 'collectible' | 'agent'
+export type FrameSubjectKind = 'weapon' | 'sticker' | 'charm' | 'collectible' | 'agent' | 'pet'
 
 /** The three standalone item groups, in the frame's words. An id, and at most one number. */
 export type FrameSticker = { id: number; wear?: number }
 export type FrameCharm = { id: number; pattern?: number }
 export type FrameCollectible = { id: number }
+/**
+ * One chicken pet (0.4.1). `id` is the `pet_definitions` row. Identity is `id` and, for a breed, a
+ * `stage` move between pullet and hen (the frame re-frames and says `ready` again); the rest update in
+ * place. `variant: null` lets the seed pick the colour group, `pose: null` is the idle.
+ */
+export type FramePet = {
+	id: number
+	stage?: 'egg' | 'chick' | 'pullet' | 'hen'
+	variant?: number | null
+	petSeed?: number
+	pose?: string | null
+	look?: { attributes?: Record<string, number>; shape?: Record<string, number> } | null
+	/*
+	 * THE PHOTO BOOTH AND THE NAMES (0.4.2) - all cheap, none of them identity. Plain strings on the wire;
+	 * the frame checks each against its own table and names a word it does not know (`types.ts` has the
+	 * unions). `names` REPLACES the held set rather than merging per stage.
+	 */
+	hat?: string | null
+	backdrop?: string | null
+	light?: string | null
+	effect?: string | null
+	names?: { chick?: string; pullet?: string; hen?: string } | null
+	nameLabel?: boolean
+}
 
 /**
  * Everything `/frame` holds. One field per prop of the renderer that a host can set.
@@ -179,6 +203,7 @@ export type FrameState = {
 	sticker: FrameSticker
 	charm: FrameCharm
 	collectible: FrameCollectible
+	pet: FramePet
 	view: 'gun' | 'hands' | 'agent'
 	agent: { id: number; pose?: string | null }
 	gloves: { type: string; paintIndex: number; float?: number; seed?: number } | null
@@ -217,6 +242,7 @@ export type FramePatch = {
 	sticker?: Partial<FrameSticker>
 	charm?: Partial<FrameCharm>
 	collectible?: Partial<FrameCollectible>
+	pet?: Partial<FramePet>
 	view?: FrameState['view']
 	agent?: Partial<FrameState['agent']>
 	gloves?: FrameState['gloves']

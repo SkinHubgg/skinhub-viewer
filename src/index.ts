@@ -6,14 +6,15 @@
  *     <SkinViewer item={{ weapon: 'weapon_ak47', paintIndex: 1449, float: 0.27 }} style={{ height: 420 }} />
  *     <SkinViewer inspectLink={tradeOffer.inspectLink} style={{ height: 420 }} />
  *
- * A weapon (or a glove) is one of SIX ways to name a subject, and each is its own prop:
+ * A weapon (or a glove) is one of SEVEN ways to name a subject, and each is its own prop:
  *
  *     <SkinViewer sticker={{ id: 37, wear: 0.2 }} />        one sticker, the real holo/foil shader
  *     <SkinViewer charm={{ id: 5 }} />                      one charm, off the gun
  *     <SkinViewer collectible={{ id: 874 }} />              one pin, coin, medal or trophy
  *     <SkinViewer operator={{ id: 5036 }} />                one agent, alone
+ *     <SkinViewer pet={{ id: 4, stage: 'hen' }} />          one chicken pet
  *
- * Exactly one of the six, enforced in the types - see `ViewerSubject`.
+ * Exactly one of the seven, enforced in the types - see `ViewerSubject`.
  *
  * The 3D is not in here. It is a page on our origin that this component embeds and drives over
  * `postMessage`, which is why installing this pulls in no `three`, no `@react-three/fiber` and no
@@ -60,6 +61,12 @@ export { fromInspectLink, toInspectLink, toPlacement } from './item.js'
 
 export type {
 	MapName,
+	PetBackdrop,
+	PetEffect,
+	PetHat,
+	PetLook,
+	PetNames,
+	PetStage,
 	SkinViewerCharm,
 	SkinViewerError,
 	SkinViewerErrorCode,
@@ -67,7 +74,6 @@ export type {
 	SkinViewerItem,
 	SkinViewerProps,
 	SkinViewerSticker,
-	TimeOfDay,
 	ViewerAgent,
 	ViewerBackground,
 	ViewerCameraSettings,
@@ -80,6 +86,7 @@ export type {
 	ViewerLocaleSettings,
 	ViewerOperatorSubject,
 	ViewerOverlaySettings,
+	ViewerPetSubject,
 	ViewerQualitySettings,
 	ViewerResize,
 	ViewerSettings,

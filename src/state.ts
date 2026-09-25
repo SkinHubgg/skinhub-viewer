@@ -38,6 +38,7 @@ import type {
 	FrameItem,
 	FrameLabels,
 	FramePatch,
+	FramePet,
 	FrameSettings,
 	FrameSticker,
 	FrameSubjectKind,
@@ -79,6 +80,7 @@ export type DesiredState = {
 	sticker?: FrameSticker
 	charm?: FrameCharm
 	collectible?: FrameCollectible
+	pet?: FramePet
 	/** The integrator's own inspect link, forwarded verbatim as `?i=`. See `item.ts`. */
 	inspectPayload: string | null
 	help: HelpReason | null
@@ -168,6 +170,7 @@ export const resolveState = (props: Partial<SkinViewerProps>): DesiredState => {
 			...(standalone.sticker && { sticker: standalone.sticker }),
 			...(standalone.charm && { charm: standalone.charm }),
 			...(standalone.collectible && { collectible: standalone.collectible }),
+			...(standalone.pet && { pet: standalone.pet }),
 			inspectPayload: null,
 			help: standalone.error ? HELP_FOR[standalone.error.code] : null,
 			subjectError: standalone.error,
@@ -290,6 +293,34 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 		num(params, 'pattern', desired.charm.pattern)
 	}
 	if (desired.collectible) params.set('collectible', String(desired.collectible.id))
+	/*
+	 * THE PET, and its `?pose=` is the pet's clip: the frame reads `?pose=` as a pet clip whenever
+	 * `?pet=` is present, and an operator's pose has nothing to animate on a pet page. `?petseed=` and
+	 * not `?seed=` for the charm's reason - `seed` is the weapon's paint seed on this URL.
+	 */
+	if (desired.pet) {
+		const pet = desired.pet
+		params.set('pet', String(pet.id))
+		if (pet.stage) params.set('stage', pet.stage)
+		if (pet.variant !== undefined) params.set('variant', pet.variant === null ? '' : String(pet.variant))
+		num(params, 'petseed', pet.petSeed)
+		if (pet.pose) params.set('pose', pet.pose)
+		const look = petLookParam(pet.look)
+		if (look) params.set('look', look)
+		/* THE PHOTO BOOTH AND THE NAMES (0.4.2). `null` is written as the frame's explicit off (`none`, or an
+		   empty `?light=`) so a first paint says exactly what the prop says; absent says nothing. The names
+		   go per stage (`?chickname=`...), never `?name=`, which the frame reads against a stage the host
+		   may not have named - and only the named ones: a fresh frame's names are already none. */
+		if (pet.hat !== undefined) params.set('hat', pet.hat ?? 'none')
+		if (pet.backdrop !== undefined) params.set('backdrop', pet.backdrop ?? 'none')
+		if (pet.light !== undefined) params.set('light', pet.light?.replace(/^#/, '') ?? '')
+		if (pet.effect !== undefined) params.set('fx', pet.effect ?? 'none')
+		for (const stage of PET_NAMED_STAGES) {
+			const name = pet.names?.[stage]
+			if (name) params.set(`${stage}name`, name)
+		}
+		if (pet.nameLabel !== undefined) flag(params, 'namelabel', pet.nameLabel)
+	}
 
 	if (item) {
 		params.set('weapon', item.weaponType)
@@ -314,7 +345,7 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 
 	if (desired.view) params.set('view', desired.view)
 	if (desired.agent?.id !== undefined) params.set('agent', String(desired.agent.id))
-	if (desired.agent?.pose) params.set('pose', desired.agent.pose)
+	if (desired.agent?.pose && !desired.pet?.pose) params.set('pose', desired.agent.pose)
 	if (desired.gloves !== undefined) params.set('glove', desired.gloves ? gloveParam(desired.gloves) : 'none')
 
 	const s = desired.settings
@@ -327,7 +358,6 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 	flag(params, 'shadows', s?.quality?.shadows)
 	// `?map=none` is the calibrated reference rig, which is what `map: null` means on the prop.
 	if (s?.environment?.map !== undefined) params.set('map', s.environment.map ?? 'none')
-	if (s?.environment?.timeOfDay) params.set('time', s.environment.timeOfDay)
 	flag(params, 'rain', s?.environment?.rain)
 	if (s?.environment?.background) params.set('bg', s.environment.background)
 	flag(params, 'stickergizmo', s?.overlays?.stickerGizmo)
@@ -381,6 +411,15 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 		item && !desired.inspectPayload && item.stickers ? { ...desired, item: { ...item, stickers: undefined } } : desired
 
 	return { src: `${origin.replace(/\/+$/, '')}/frame?${params.toString()}`, expressed }
+}
+
+/** `$ChickenHue:0.42,fatness:0.7` - the frame's `?look=`, keys sorted so one look is one URL. */
+const petLookParam = (look: FramePet['look']): string | null => {
+	const pairs = [...Object.entries(look?.attributes ?? {}), ...Object.entries(look?.shape ?? {})]
+		.filter(([, value]) => Number.isFinite(value))
+		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		.map(([key, value]) => `${key}:${Math.round(Math.min(Math.max(value, 0), 1) * 1000) / 1000}`)
+	return pairs.length ? pairs.join(',') : null
 }
 
 /** `type:paintIndex[:float[:seed]]` - one param and not four, because they are one item. */
@@ -496,6 +535,13 @@ export const diffState = (previous: DesiredState, next: DesiredState): FramePatc
 		patch.collectible = collectible
 		changed = true
 	}
+	/* The pet's `look` is the one nested field in any standalone group, and a host rebuilds it on every
+	   render - so it is compared by value, or every render would post a `set`. */
+	const pet = diffGroup(previous.pet, next.pet, { look: petLookEqual, names: petNamesEqual })
+	if (pet) {
+		patch.pet = pet
+		changed = true
+	}
 
 	if (next.view !== undefined && next.view !== previous.view) {
 		patch.view = next.view
@@ -555,18 +601,33 @@ export const diffState = (previous: DesiredState, next: DesiredState): FramePatc
  * wire, and the alternative reading would make a conditional prop destructive. Same rule as
  * {@link diffSettings} one level in.
  */
-const diffGroup = <T extends object>(previous: T | undefined, next: T | undefined): Partial<T> | undefined => {
+const diffGroup = <T extends object>(
+	previous: T | undefined,
+	next: T | undefined,
+	/** Per-key equality for the rare nested field; everything else is `Object.is`. */
+	equal: { [K in keyof T]?: (a: T[K], b: T[K]) => boolean } = {},
+): Partial<T> | undefined => {
 	if (!next) return undefined
 	if (!previous) return { ...next }
 	const out: Partial<T> = {}
 	let changed = false
 	for (const key of Object.keys(next) as (keyof T)[])
-		if (!Object.is(previous[key], next[key])) {
+		if (!(equal[key] ?? Object.is)(previous[key], next[key])) {
 			out[key] = next[key]
 			changed = true
 		}
 	return changed ? out : undefined
 }
+
+const petLookEqual = (a: FramePet['look'], b: FramePet['look']) =>
+	a === b || (!!a && !!b && petLookParam(a) === petLookParam(b))
+
+/** The stages a pet can be named at, in order - the egg cannot be. */
+const PET_NAMED_STAGES = ['chick', 'pullet', 'hen'] as const
+
+/** `names` is the other nested pet field a host rebuilds every render - compared by value like `look`. */
+const petNamesEqual = (a: FramePet['names'], b: FramePet['names']) =>
+	a === b || (!!a && !!b && PET_NAMED_STAGES.every(stage => (a[stage] ?? '') === (b[stage] ?? '')))
 
 const glovesEqual = (a: ViewerGloves | null | undefined, b: ViewerGloves | null | undefined) => {
 	if (a === b) return true
@@ -638,18 +699,48 @@ const localeEqual = (a: FrameSettings['locale'], b: FrameSettings['locale']) => 
  * IT TAKES THE WHOLE NEXT STATE rather than just the view, because one of the answers depends on which
  * SUBJECT the patch lands on: an operator's id covers under `subject: 'agent'` for the same reason it
  * covers under `view: 'agent'`, and does not under `hands`.
+ *
+ * AND THE PREVIOUS ONE, OPTIONALLY, for the pet's stage (see {@link drawnPetStage}): a stage patch only
+ * says the raw value moved, and whether the DRAWN stage moved depends on where it came from.
  */
-export const coversCanvas = (patch: FramePatch, next: Pick<DesiredState, 'subject' | 'view'>): boolean => {
+export const coversCanvas = (
+	patch: FramePatch,
+	next: Pick<DesiredState, 'subject' | 'view' | 'pet'>,
+	previous?: Pick<DesiredState, 'pet'>,
+): boolean => {
 	// A different KIND of subject is a different renderer. Always a reload, in every direction.
 	if (patch.subject !== undefined) return true
 	if (patch.view !== undefined) return true
 	if (patch.item && IDENTITY_FIELDS.some(field => patch.item?.[field] !== undefined)) return true
 	// An id is identity for all four standalone subjects; their second field (`wear`, `pattern`) is not.
-	if (patch.sticker?.id !== undefined || patch.charm?.id !== undefined || patch.collectible?.id !== undefined)
+	if (
+		patch.sticker?.id !== undefined ||
+		patch.charm?.id !== undefined ||
+		patch.collectible?.id !== undefined ||
+		patch.pet?.id !== undefined
+	)
 		return true
+	// A breed's stage is identity too: pullet and hen are one model, but the frame re-frames the bird
+	// and says `ready` again. Only when the drawn stage moves - anything else never gets that `ready`.
+	if (patch.pet?.stage !== undefined && previous && drawnPetStage(next.pet) !== drawnPetStage(previous.pet)) return true
 	// The operator is identity when they ARE the subject, and in the `agent` view, where their
 	// `<Suspense>` tears the subtree down; cheap in `hands`, where the arms are already mounted. The
 	// asymmetry is the renderer's, not ours.
 	if (patch.agent?.id !== undefined && (next.subject === 'agent' || next.view === 'agent')) return true
 	return false
 }
+
+/** The three breeds (`3` Catalana, `4` Silkie, `5` Polish) - the only pets with more than one stage. */
+const PET_BREED_IDS: readonly number[] = [3, 4, 5]
+
+/**
+ * *** THE STAGE THE FRAME WILL DRAW, OR `undefined` WHEN THE STAGE CANNOT CHANGE THE PICTURE. ***
+ *
+ * The frame clamps a stage to what the definition can be: an egg is only an egg, a chick only a chick,
+ * and a breed is a `pullet` or (anything else, or nothing) a `hen`. So `{ id: 3 }` -> `{ id: 3, stage:
+ * 'hen' }` is a patch that draws the same bird, and raising `loading` for it would wait for a `ready`
+ * that never comes. An id this package does not know is answered `undefined` for the same reason: a
+ * missed cover costs a few frames, a false one leaves the host's loading slot up for good.
+ */
+const drawnPetStage = (pet: FramePet | undefined) =>
+	pet && PET_BREED_IDS.includes(pet.id) ? (pet.stage === 'pullet' ? 'pullet' : 'hen') : undefined

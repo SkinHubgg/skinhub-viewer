@@ -37,6 +37,7 @@ import type {
 	FrameCharm,
 	FrameCollectible,
 	FrameItem,
+	FramePet,
 	FrameSticker,
 	FrameSubjectKind,
 	PlacementSlots,
@@ -215,6 +216,7 @@ export type ResolvedStandalone = {
 	sticker?: FrameSticker
 	charm?: FrameCharm
 	collectible?: FrameCollectible
+	pet?: FramePet
 	agent?: { id: number; pose?: string | null }
 	error: SkinViewerError | null
 }
@@ -250,6 +252,37 @@ export const resolveStandalone = (props: Partial<ViewerSubject>): ResolvedStanda
 		return ok(props.operator.id)
 			? { subject: 'agent', agent: dropUndefined({ id: props.operator.id, pose: props.operator.pose }), error: null }
 			: bad('agent', 'operator', props.operator.id)
+
+	/* A PET CARRIES ITS WHOLE LOOK IN ONE GROUP - stage, colour group, seed, pose and the look sliders -
+	   and only the id is identity. `look` is copied so a host mutating its own object cannot change what
+	   the next diff compares against. */
+	if (props.pet)
+		return ok(props.pet.id)
+			? {
+					subject: 'pet',
+					pet: dropUndefined({
+						id: props.pet.id,
+						stage: props.pet.stage,
+						variant: props.pet.variant,
+						petSeed: props.pet.petSeed,
+						pose: props.pet.pose,
+						look: props.pet.look
+							? {
+									...(props.pet.look.attributes && { attributes: { ...props.pet.look.attributes } }),
+									...(props.pet.look.shape && { shape: { ...props.pet.look.shape } }),
+								}
+							: props.pet.look,
+						// The photo booth and the names (0.4.2). `names` copied for `look`'s reason.
+						hat: props.pet.hat,
+						backdrop: props.pet.backdrop,
+						light: props.pet.light,
+						effect: props.pet.effect,
+						names: props.pet.names ? { ...props.pet.names } : props.pet.names,
+						nameLabel: props.pet.nameLabel,
+					}),
+					error: null,
+				}
+			: bad('pet', 'pet', props.pet.id)
 
 	return null
 }

@@ -33,6 +33,7 @@
 		"hostLoading",
 		"interactions",
 		"item",
+		"pet",
 		"settings",
 		"sticker",
 		"subject",
@@ -47,6 +48,7 @@
 		"hostLoading",
 		"interactions",
 		"item",
+		"pet",
 		"settings",
 		"sticker",
 		"subject",
@@ -56,6 +58,7 @@
 		"agent",
 		"charm",
 		"collectible",
+		"pet",
 		"sticker",
 		"weapon"
 	],
@@ -69,6 +72,35 @@
 	],
 	"collectible": [
 		"id"
+	],
+	"pet": [
+		"backdrop",
+		"effect",
+		"hat",
+		"id",
+		"light",
+		"look",
+		"nameLabel",
+		"names",
+		"petSeed",
+		"pose",
+		"stage",
+		"variant"
+	],
+	"petStages": [
+		"chick",
+		"egg",
+		"hen",
+		"pullet"
+	],
+	"petLook": [
+		"attributes",
+		"shape"
+	],
+	"petNames": [
+		"chick",
+		"hen",
+		"pullet"
 	],
 	"item": [
 		"float",
@@ -116,8 +148,7 @@
 	"environment": [
 		"background",
 		"map",
-		"rain",
-		"timeOfDay"
+		"rain"
 	],
 	"overlays": [
 		"charmGizmo",

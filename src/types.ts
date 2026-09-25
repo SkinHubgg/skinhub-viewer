@@ -160,6 +160,8 @@ type ItemConfiguration = {
  *   `charm`        identity `id`, cheap `pattern`
  *   `collectible`  identity `id`, and NOTHING is cheap - there is no other field to change
  *   `operator`     identity `id`, cheap `pose`
+ *   `pet`          identity `id` and a breed's drawn `stage`, cheap `variant`, `petSeed`, `pose`, `look`,
+ *                  and (0.4.2) `hat`, `backdrop`, `light`, `effect`, `names`, `nameLabel`
  *
  * *** CHANGING WHICH SUBJECT YOU PASS IS ALWAYS AN IDENTITY CHANGE, *** in every direction: a weapon
  * and a pin are drawn by different renderers, so the picture is rebuilt from nothing.
@@ -301,6 +303,121 @@ export type ViewerOperatorSubject = {
 	pose?: string | null
 }
 
+/** A pet's growth stage - the item's `upgrade level` attribute, 0 egg .. 3 hen. */
+export type PetStage = 'egg' | 'chick' | 'pullet' | 'hen'
+
+/**
+ * The look sliders: per-key overrides over what the pet seed rolls, every value `0`..`1`. `attributes`
+ * is keyed by render attribute (`$ChickenHue`), `shape` by body characteristic (`fatness`). A key you do
+ * not pass is the seed's.
+ */
+export type PetLook = { attributes?: Record<string, number>; shape?: Record<string, number> }
+
+/**
+ * ONE CHICKEN PET (CS2 1.41.8.2) - what `/pet/:id` shows on our own site.
+ *
+ * `id` is the `pet_definitions` row, which is the `pet id` attribute on the item: `1` the egg, `2` the
+ * chick, `3` Catalana, `4` Silkie, `5` Polish. Everything else is how that pet looks:
+ *
+ *   `stage`    `'egg' | 'chick' | 'pullet' | 'hen'`. An egg is only an egg and a chick only a chick;
+ *              the three breeds are a pullet or a hen (the default). IDENTITY for a breed - see below.
+ *   `variant`  the colour group index, or `null` (default) to let the seed pick it. Updates IN PLACE.
+ *   `petSeed`  the `pet seed` attribute, a uint32. Default `0`. Updates IN PLACE. What a seed looks
+ *              like is our closest reconstruction of the game's rule and may differ slightly.
+ *   `pose`     a clip name from the pet's own model, or `null` (default) for its idle. IN PLACE. On the
+ *              egg only, `'chicknegg_hatch01'` / `'chicknegg_hatch02'` play the hatch (the shell breaks
+ *              and the chick climbs out; 02 is the shorter take). Any other pet idles on those two.
+ *   `look`     per-key overrides of the seed's roll - see {@link PetLook}. IN PLACE.
+ *
+ * IDENTITY IS `id` AND `stage`. A different id is a different model. A breed's pullet and hen are the
+ * same model, but the stage swaps the body proportions, so moving between them re-frames the bird:
+ * `loading` goes up and `onReady` fires again, the same as for a new id, only faster. A stage the pet
+ * cannot be (a hen for the egg) is drawn as the stage it can, and changes nothing. Everything else
+ * re-renders the bird already on screen.
+ */
+export type ViewerPetSubject = {
+	id: number
+	stage?: PetStage
+	variant?: number | null
+	petSeed?: number
+	pose?: string | null
+	look?: PetLook | null
+	/* ── The photo booth and the names (0.4.2). All update IN PLACE and none sends `onReady` again; only
+	   `backdrop` moves the camera (see there). ── */
+	/** A photo booth hat, or `null` (default) for none. Ignored on the egg, which has no head. */
+	hat?: PetHat | null
+	/**
+	 * The photo studio's paper backdrop behind the bird, by colour, or `null` (default) for none.
+	 *
+	 * IT MOVES THE CAMERA: switching one on seats the camera where the game's booth camera stands, frames
+	 * the bird looser (room for a hat and the effects) and limits a drag to 30 degrees either side of the
+	 * seat. A view you pinned (`settings.camera`) keeps its seat; the looser framing and the drag limit
+	 * still apply, centred on it. Switching it off gives the camera back.
+	 */
+	backdrop?: PetBackdrop | null
+	/**
+	 * The studio key light, six hex digits (`'ffe0c0'`, a leading `#` is accepted), or `null` (default) for
+	 * the booth's own warm white `fff2e6`. It lights the studio, so it only shows with a {@link backdrop}.
+	 */
+	light?: string | null
+	/**
+	 * A photo booth effect, replaying until you clear it, or `null` (default) for none. Not drawn on the egg.
+	 * The game offers `beam`, `lasers` and `sparks` from a pullet on; this draws what you ask for on a chick too.
+	 */
+	effect?: PetEffect | null
+	/**
+	 * The pet's names, one per growth stage, as the item stores them (the egg cannot be named). Each is cut to
+	 * 20 characters and loses `{ } < >`, as the game's own box does. A stage without a name goes by the
+	 * nearest named one - its own, then the younger stages, then the older ones. Passing `names` REPLACES
+	 * the set: send every stage you want kept.
+	 */
+	names?: PetNames | null
+	/** Draw the shown stage's name above the bird. Default `false`. */
+	nameLabel?: boolean
+}
+
+/** The ten photo booth hats, by the game's own names. */
+export type PetHat =
+	| 'helmet'
+	| 'armor'
+	| 'alien'
+	| 'banana'
+	| 'glasses'
+	| 'nose_glasses'
+	| 'party'
+	| 'sprout'
+	| 'top_hat'
+	| 'wizard_hat'
+
+/** The photo studio's paper colours. `wallpaper` exists in the game files but the booth never offers it. */
+export type PetBackdrop =
+	| 'grey'
+	| 'blue'
+	| 'green'
+	| 'purple'
+	| 'yellow'
+	| 'brown'
+	| 'red'
+	| 'black'
+	| 'sky'
+	| 'abstract'
+	| 'wallpaper'
+
+/** The nine photo booth effects, by the game's particle names (`lasers`, `feathers`). */
+export type PetEffect =
+	| 'explosion'
+	| 'lightning'
+	| 'fire'
+	| 'beam'
+	| 'lasers'
+	| 'sparks'
+	| 'confetti'
+	| 'bubbles'
+	| 'feathers'
+
+/** One name per stage - the item's `custom name attr` (chick), `... 2` (pullet) and `... 3` (hen). */
+export type PetNames = { chick?: string; pullet?: string; hen?: string }
+
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
  * PRESENTATION
  * ═══════════════════════════════════════════════════════════════════════════════════════════ */
@@ -371,9 +488,17 @@ export type ViewerGloves = {
  * upgraded. That is the deliberate trade - the rule is *"no back-compat
  * boilerplate, upgrade when you need to"* - and the failure is legible either way: the frame reports
  * an unknown map in its `problems` and keeps the lighting it had.
+ *
+ * *** THREE NAMES MOVED IN 0.4.0 AND THAT IS THE RULE BEING CHARGED. *** There was a `timeOfDay`
+ * field beside {@link ViewerEnvironmentSettings.map}, and a map that had two videos was named by the
+ * PAIR. It is one field now: `'Ancient'` became `'Ancient (Day)'` and `'Ancient (Night)'`, and
+ * `'Train'` became `'Train (Night)'` - a correction as much as a rename, since `de_train` ships one
+ * vanity scene and that scene is night. An embed still passing `'Ancient'` reports an unknown map in
+ * `problems` and keeps the lighting it had, which is this list's documented failure and not a new one.
  */
 export const MAP_NAMES = [
-	'Ancient',
+	'Ancient (Day)',
+	'Ancient (Night)',
 	'Anubis',
 	'Baggage',
 	'Cache',
@@ -384,13 +509,12 @@ export const MAP_NAMES = [
 	'Nuke',
 	'Office',
 	'Overpass',
-	'Train',
+	'Train (Night)',
 	'Vertigo',
 	'Warehouse',
 ] as const
 
 export type MapName = (typeof MAP_NAMES)[number]
-export type TimeOfDay = 'Day' | 'Night'
 
 /**
  * What is BEHIND the item.
@@ -466,7 +590,7 @@ export type ViewerQualitySettings = {
 
 export type ViewerEnvironmentSettings = {
 	/**
-	 * WHICH MAP'S LIGHT. Default `'Ancient'`; `null` is our calibrated reference rig, which is what
+	 * WHICH MAP'S LIGHT. Default `'Dust II'`; `null` is our calibrated reference rig, which is what
 	 * every fidelity measurement behind this renderer was taken against.
 	 *
 	 * *** THIS IS THE LIGHT, {@link background} IS THE PICTURE, AND THEY ARE SEPARATE ON PURPOSE. ***
@@ -475,8 +599,6 @@ export type ViewerEnvironmentSettings = {
 	 * your page behind it.
 	 */
 	map?: MapName | null
-	/** Default `'Night'`. Falls back on its own for a map that has only one. */
-	timeOfDay?: TimeOfDay
 	/** Wet surfaces on maps whose own data says it rains. Default `true`. */
 	rain?: boolean
 	/** See {@link ViewerBackground}. Default `'transparent'`. */
@@ -716,6 +838,8 @@ type SubjectArms = {
 	charm: ViewerCharmSubject
 	collectible: ViewerCollectibleSubject
 	operator: ViewerOperatorSubject
+	/** Added in 0.4.1 - a seventh arm on the same rule. See {@link ViewerPetSubject}. */
+	pet: ViewerPetSubject
 }
 
 /** One arm present, the other five forbidden. Written once so six arms cannot disagree about five. */
@@ -730,6 +854,7 @@ export type ViewerSubject =
 	| OnlySubject<'charm'>
 	| OnlySubject<'collectible'>
 	| OnlySubject<'operator'>
+	| OnlySubject<'pet'>
 
 export type SkinViewerProps = ViewerSubject & {
 	/* ── Presentation ──────────────────────────────────────────────────────────────────────── */
