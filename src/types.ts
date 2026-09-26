@@ -321,9 +321,10 @@ export type PetLook = { attributes?: Record<string, number>; shape?: Record<stri
  *
  *   `stage`    `'egg' | 'chick' | 'pullet' | 'hen'`. An egg is only an egg and a chick only a chick;
  *              the three breeds are a pullet or a hen (the default). IDENTITY for a breed - see below.
- *   `variant`  the colour group index, or `null` (default) to let the seed pick it. Updates IN PLACE.
- *   `petSeed`  the `pet seed` attribute, a uint32. Default `0`. Updates IN PLACE. What a seed looks
- *              like is our closest reconstruction of the game's rule and may differ slightly.
+ *   `variant`  the colour group index (the item's style in the game), or `null` (default) for no style:
+ *              the model's default group. The seed never picks it. Updates IN PLACE.
+ *   `petSeed`  the `pet seed` attribute, a uint32. Default `0`. Updates IN PLACE. A seed rolls the
+ *              same colour shifts and body shape the game does.
  *   `pose`     a clip name from the pet's own model, or `null` (default) for its idle. IN PLACE. On the
  *              egg only, `'chicknegg_hatch01'` / `'chicknegg_hatch02'` play the hatch (the shell breaks
  *              and the chick climbs out; 02 is the shorter take). Any other pet idles on those two.
@@ -343,16 +344,20 @@ export type ViewerPetSubject = {
 	pose?: string | null
 	look?: PetLook | null
 	/* ── The photo booth and the names (0.4.2). All update IN PLACE and none sends `onReady` again; only
-	   `backdrop` moves the camera (see there). ── */
-	/** A photo booth hat, or `null` (default) for none. Ignored on the egg, which has no head. */
+	   `backdrop` moves the camera, and a `hat` nudges it once (see there). ── */
+	/**
+	 * A photo booth hat, or `null` (default) for none. Ignored on the egg, which has no head. Without a
+	 * {@link backdrop}, wearing one frames the bird a little looser, once: switching hats does not move the
+	 * camera, and taking the last one off gives it back.
+	 */
 	hat?: PetHat | null
 	/**
 	 * The photo studio's paper backdrop behind the bird, by colour, or `null` (default) for none.
 	 *
 	 * IT MOVES THE CAMERA: switching one on seats the camera where the game's booth camera stands, frames
 	 * the bird looser (room for a hat and the effects) and limits a drag to 30 degrees either side of the
-	 * seat. A view you pinned (`settings.camera`) keeps its seat; the looser framing and the drag limit
-	 * still apply, centred on it. Switching it off gives the camera back.
+	 * seat. A view you pinned (`settings.camera`) keeps its pitch, but its yaw is held to within 30 degrees
+	 * of the booth camera, so the paper's edge never shows. Switching it off gives the camera back.
 	 */
 	backdrop?: PetBackdrop | null
 	/**

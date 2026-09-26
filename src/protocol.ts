@@ -167,7 +167,8 @@ export type FrameCollectible = { id: number }
 /**
  * One chicken pet (0.4.1). `id` is the `pet_definitions` row. Identity is `id` and, for a breed, a
  * `stage` move between pullet and hen (the frame re-frames and says `ready` again); the rest update in
- * place. `variant: null` lets the seed pick the colour group, `pose: null` is the idle.
+ * place. `variant: null` is no style, the model's default colour group (the seed never picks it),
+ * `pose: null` is the idle.
  */
 export type FramePet = {
 	id: number

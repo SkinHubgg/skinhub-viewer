@@ -168,14 +168,14 @@ subject of their own, named by `?pet=`:
 |---|---|---|
 | `pet` | the `pet_definitions` id - the item's `pet id` attribute. `1` egg, `2` chick, `3` Catalana, `4` Silkie, `5` Polish. **Implies `subject=pet`** | - |
 | `stage` | `egg`, `chick`, `pullet` or `hen` - the item's `upgrade level`. The three breeds are a `pullet` or a `hen`; an egg and a chick have one stage each | `hen` for a breed |
-| `variant` | the colour group index. Empty (`?variant=`) lets the seed pick it, which is how a real pet gets one | the seed's |
+| `variant` | the colour group index - the item's style in the game. Empty (`?variant=`) is no style: the model's default group. The seed never picks it | the model's default |
 | `petseed` | the item's `pet seed` attribute, `0` to `4294967295` | `0` |
 | `pose` | a clip name from the pet's own model; with `?pet=` present this is the pet's clip, not an operator pose. On the egg (`pet=1`) only, `chicknegg_hatch01` or `chicknegg_hatch02` plays the hatch - the shell breaks and the chick climbs out (the second is the shorter take). Any other pet idles on those two | the idle |
 | `look` | the look sliders: comma-separated `key:value` pairs, values `0` to `1`, e.g. `$ChickenHue:0.42,fatness:0.7`. A key starting with `$` is a colour attribute, anything else a body shape | the seed's |
 
 **`?petseed=` and not `?seed=`,** for the charm's reason: `seed` on this URL is the weapon's paint seed.
-What a given seed looks like is our closest reconstruction of the game's rule and may differ slightly;
-`variant` and `look` are exact.
+A seed rolls the same colour shifts and body shape the game does (the game's own rule, checked against
+its code); `variant` and `look` are exact too.
 
 Identity is `pet` and `stage`. Changing `pet` loads a different model. A breed's pullet and hen are
 the same model, but the stage changes the body proportions, so moving between them re-frames the bird
@@ -193,12 +193,15 @@ render of one is never cached as immutable.
 What CS2's pet photo booth puts around the bird, and the names the item carries. All of them update in
 place, and none of them is a new item: no `ready` is sent for them.
 
-**A `backdrop` moves the camera; nothing else here does.** Switching one on puts the camera where the
-game's booth camera stands (a little to the bird's right, slightly above), frames the bird looser so a hat
-and the effects fit, and limits dragging (`orbit=1`) to 30 degrees either side of that seat, so the edge
-of the paper never comes into view. If you pin the view yourself (`side`, `yaw` or `pitch`), your seat is
-kept: the looser framing and the drag limit still apply, centred on it. Switching the backdrop off gives
-the camera back.
+**A `backdrop` moves the camera and a `hat` nudges it once; nothing else here does.** Switching a
+backdrop on puts the camera where the game's booth camera stands (a little to the bird's right, slightly
+above), frames the bird looser so a hat and the effects fit, and limits dragging (`orbit=1`) to 30 degrees
+either side of that seat, so the edge of the paper never comes into view. A view you pin yourself (`side`,
+`yaw` or `pitch`) is honoured inside that range: its pitch is kept and its yaw is held to within 30
+degrees of the booth camera, so `side=back` draws from 30 degrees round rather than from behind the paper.
+Switching the backdrop off gives the camera back. Without a backdrop, putting a hat on frames the bird a
+little looser, once: switching between hats does not move the camera, and taking the last one off gives
+it back.
 
 ```
 ?pet=3&hat=party&backdrop=blue&fx=confetti              a Catalana hen in a party hat, on blue paper, confetti
