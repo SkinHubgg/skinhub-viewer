@@ -169,7 +169,7 @@ subject of their own, named by `?pet=`:
 | `pet` | the `pet_definitions` id - the item's `pet id` attribute. `1` egg, `2` chick, `3` Catalana, `4` Silkie, `5` Polish. **Implies `subject=pet`** | - |
 | `stage` | `egg`, `chick`, `pullet` or `hen` - the item's `upgrade level`. The three breeds are a `pullet` or a `hen`; an egg and a chick have one stage each | `hen` for a breed |
 | `variant` | the colour group index - the item's style in the game. Empty (`?variant=`) is no style: the model's default group. The seed never picks it | the model's default |
-| `petseed` | the item's `pet seed` attribute, `0` to `4294967295` | `0` |
+| `petseed` | the item's `pet seed` attribute, `0` to `4294967295`. `0` is the game's seed 0, not "no seed". Leave it off for no seed | none: the colour group's base look, the colours as painted (0.4.3; before, `0`) |
 | `pose` | a clip name from the pet's own model; with `?pet=` present this is the pet's clip, not an operator pose. On the egg (`pet=1`) only, `chicknegg_hatch01` or `chicknegg_hatch02` plays the hatch - the shell breaks and the chick climbs out (the second is the shorter take). Any other pet idles on those two | the idle |
 | `look` | the look sliders: comma-separated `key:value` pairs, values `0` to `1`, e.g. `$ChickenHue:0.42,fatness:0.7`. A key starting with `$` is a colour attribute, anything else a body shape | the seed's |
 
@@ -183,6 +183,11 @@ and the frame sends `ready` again, like a new item (the package raises `loading`
 pet cannot be (`hen` on the egg) draws the stage it can and changes nothing. `variant`, `petseed`,
 `pose` and `look` update in place over `postMessage` (`{ pet: { petSeed: 99 } }`). Pets animate, so a
 render of one is never cached as immutable.
+
+**No seed is `petSeed: null` (0.4.3).** Over `postMessage`, and in `@skinhub/viewer`'s `pet` prop, `null`
+takes the bird back to the base look. Leaving `petSeed` out says nothing, so the seed already on screen
+stays; on the first render (and in a URL) leaving it out is the base look. `0` is the game's seed 0, a
+different picture from no seed.
 
 ```jsx
 <SkinViewer pet={{ id: 4, stage: 'pullet', variant: null, petSeed: 1234 }} />
@@ -211,7 +216,7 @@ it back.
 
 | parameter | meaning | default |
 |---|---|---|
-| `hat` | a booth hat: `helmet`, `armor`, `alien`, `banana`, `glasses`, `nose_glasses`, `party`, `sprout`, `top_hat`, `wizard_hat`. `none` for none. Not drawn on the egg | none |
+| `hat` | a booth hat: `helmet`, `armor`, `alien`, `banana`, `glasses`, `nose_glasses`, `party`, `sprout`, `top_hat`, `wizard_hat`. `none` for none. Not drawn on the egg. The hat is the bird's own: it is drawn in every view, on its own, on a shoulder (`view=agent`) and in first person (`view=hands`), 0.4.3 | none |
 | `backdrop` | the photo studio's paper behind the bird: `grey`, `blue`, `green`, `purple`, `yellow`, `brown`, `red`, `black`, `sky`, `abstract` (and `wallpaper`, which the game never offers). `none` for none | none |
 | `light` | the studio key light as six hex digits, e.g. `ffe0c0`. It lights the studio, so it only shows with a `backdrop`. Empty for the booth's own | `fff2e6` |
 | `fx` | a booth effect that replays until cleared: `explosion`, `lightning`, `fire`, `beam`, `lasers`, `sparks`, `confetti`, `bubbles`, `feathers`. `none` for none. Not drawn on the egg. The game offers `beam`, `lasers` and `sparks` from a pullet on; the embed draws what you ask for on a chick too | none |
@@ -230,6 +235,88 @@ Over `postMessage` the same fields are `pet.hat`, `pet.backdrop`, `pet.light`, `
 ```jsx
 <SkinViewer pet={{ id: 3, hat: 'party', backdrop: 'blue', effect: 'confetti', names: { hen: 'Clucky' }, nameLabel: true }} />
 ```
+
+#### On an operator's shoulder (0.4.3)
+
+`?view=agent` on a pet puts it on an operator's left shoulder, the picture CS2's loadout shows, framed
+from the chest up. The bird is the same one `?pet=` draws on its own: its stage, colour, seed, look,
+hat and name label all carry over. The rest of the photo booth does not - backdrops, lights and effects
+belong to the bird alone. The egg cannot sit on a shoulder, so with `pet=1` the view is ignored and the
+egg is drawn on its own.
+
+```
+?pet=3&view=agent&agent=5036                        a Catalana hen on the default T operator
+?pet=4&stage=pullet&view=agent&agent=4711&shoulder=3   a Silkie pullet flapping on Mae Jamison's shoulder
+?pet=5&view=agent&agent=5036&agentpose=noweapon:t_main_menu_elite_bellyrub
+?pet=3&view=agent&agent=4711&hat=top_hat            a Catalana hen in a top hat on Mae Jamison's shoulder
+```
+
+| parameter | meaning | default |
+|---|---|---|
+| `view` | `agent` puts the pet on the shoulder of `agent` | the pet alone |
+| `agent` | the operator carrying it, by item id, as for `subject=agent` | `5036`, the default T operator |
+| `agentpose` | the operator's pose, from the same list `?pose=` takes on an operator. Not `?pose=`, which on a pet URL is still the bird's clip. Empty is their default | their side's default empty-handed pose |
+| `shoulder` | hold one of the bird's three shoulder performances: `1` and `2` sit and look about, `3` stands and flaps. Empty or `auto` plays them one after another, as the game does | `auto` |
+
+Over `postMessage` it is `view: 'agent'`, `agent: { id, pose }` and `pet.shoulder` (`1`, `2`, `3`, or
+`null` for the game's chain). With a pet present `@skinhub/viewer` writes the operator's pose as
+`?agentpose=`.
+
+**What goes behind the loading gate is the pet's own rule plus the operator's.** A new `pet.id`, a stage
+that moves a breed between pullet and hen, and a new `agent.id` all reload, and `ready` is sent again
+once the new bird is on the shoulder. `pet.shoulder`, `agent.pose` and everything the pet updates in
+place (colour, seed, look, hat, names) stay cheap. Switching `view` between `agent` and the pet alone reloads,
+as it does for a weapon.
+
+```jsx
+<SkinViewer pet={{ id: 4, stage: 'pullet', shoulder: 3 }} view="agent" agent={{ id: 4711, pose: null }} />
+```
+
+#### Emotes (0.4.3)
+
+What the pet does, grouped the way the game's own animation graph groups it: Idle, Walk, Run, Glide,
+Land, Turn, Squat, Sleep, Panic, Trick, Feed, Hungry, Shoulder, Poses, Growth Spurt, Retirement and Hop
+for a chick, pullet or hen; Idle and React for the egg. A category plays the game's own pick from it
+(and picks again where the game does); `category-take` plays one take. Takes that loop keep playing,
+one-shots play once and the pet goes back to its idle. A category or take the pet cannot play at its
+stage plays the idle.
+
+```
+?pet=3&emote=trick                   a Catalana hen doing one of her tricks, then another
+?pet=3&emote=trick-trick03           the Sit trick, once, then back to idle
+?pet=2&emote=walk                    a chick walking, in place
+?pet=4&stage=pullet&emote=squat-squat01   squat down, sit, stand up
+```
+
+| parameter | meaning | default |
+|---|---|---|
+| `emote` | a category (`trick`) or a category and a take (`trick-trick03`; `trick:trick03` is read too). Wins over `pose` | the idle |
+
+Over `postMessage` it is `pet.emote`, plus two momentary fields that never go in the URL:
+`pet.paused` (`true` freezes the pet where it is) and `pet.replay` (change the number to play the
+emote again from its start). All three update in place.
+
+```jsx
+<SkinViewer pet={{ id: 3, emote: 'trick-trick06', paused: false }} />
+```
+
+#### In first person (0.4.3)
+
+`?view=hands` on a pet is the pet in your hands - CS2's inventory inspect of a pet. The operator's
+first-person arms (`agent`, and `glove` if you pass one) hold the bird at its full size, and both play
+the game's held clips on one clock: the draw, then the two idles in turn. Every stage has one, the egg
+included. The camera is the clips' own eye and does not orbit. The bird wears its `hat`; the rest of the
+photo booth, the name label and the shoulder are not drawn.
+
+```
+?pet=2&view=hands&agent=5036                  a chick cupped in the default T operator's hands
+?pet=3&view=hands&agent=4711&emote=held-step1 a hen held on idle 1 only
+?pet=2&view=hands&agent=5036&hat=party        a chick in a party hat, in your hands
+```
+
+`emote` picks from the held set here: `held` (the whole inspect, the default), `held-step0` (the draw),
+`held-step1` and `held-step2` (the two idles, each on repeat). Switching `view` reloads, as it does for a
+weapon.
 
 ---
 
@@ -568,7 +655,7 @@ set({
   sticker:     { id, wear },
   charm:       { id, pattern },
   collectible: { id },
-  pet:         { id, stage, variant, petSeed, pose, look, hat, backdrop, light, effect, names, nameLabel },
+  pet:         { id, stage, variant, petSeed, pose, emote, paused, replay, look, hat, backdrop, light, effect, names, nameLabel, shoulder },
   view: 'gun' | 'hands' | 'agent',
   agent: { id, pose },
   gloves: { type, paintIndex, float, seed } | null,
@@ -649,7 +736,7 @@ The same split, for the other four subjects:
 | `charm` | `charm.id` | `charm.pattern` |
 | `collectible` | `collectible.id` | *nothing - there is no other field* |
 | `agent` | `agent.id` | `agent.pose` |
-| `pet` | `pet.id`, and `pet.stage` when it moves a breed between pullet and hen | `pet.variant`, `pet.petSeed`, `pet.pose`, `pet.look`, and the booth and names (`pet.hat`, `pet.backdrop`, `pet.light`, `pet.effect`, `pet.names`, `pet.nameLabel`) |
+| `pet` | `pet.id`, and `pet.stage` when it moves a breed between pullet and hen. On a shoulder (`view: 'agent'`) the same two, plus `agent.id` | `pet.variant`, `pet.petSeed`, `pet.pose`, `pet.emote`, `pet.paused`, `pet.replay`, `pet.look`, and the booth and names (`pet.hat`, `pet.backdrop`, `pet.light`, `pet.effect`, `pet.names`, `pet.nameLabel`). On a shoulder also `pet.shoulder` and `agent.pose` |
 
 **Changing `subject` always reloads**, in every direction: a weapon and a pin are drawn by different
 renderers, so the picture is rebuilt from nothing.

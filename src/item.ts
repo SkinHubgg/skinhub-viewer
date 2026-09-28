@@ -279,6 +279,13 @@ export const resolveStandalone = (props: Partial<ViewerSubject>): ResolvedStanda
 						effect: props.pet.effect,
 						names: props.pet.names ? { ...props.pet.names } : props.pet.names,
 						nameLabel: props.pet.nameLabel,
+						// On an operator's shoulder (0.4.3) - read only with `view="agent"`.
+						shoulder: props.pet.shoulder,
+						/* The emotes (0.4.3). They were missing here, so a host's `pet.emote` never reached the
+						   frame; `paused` and `replay` are momentary and ride the wire only (`frameUrl`). */
+						emote: props.pet.emote,
+						paused: props.pet.paused,
+						replay: props.pet.replay,
 					}),
 					error: null,
 				}

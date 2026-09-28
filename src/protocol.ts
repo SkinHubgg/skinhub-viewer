@@ -174,13 +174,15 @@ export type FramePet = {
 	id: number
 	stage?: 'egg' | 'chick' | 'pullet' | 'hen'
 	variant?: number | null
-	petSeed?: number
+	/** (0.4.3: `null` added) `null` is no seed, the colour group's base look; `0` is the game's seed 0. */
+	petSeed?: number | null
 	pose?: string | null
 	look?: { attributes?: Record<string, number>; shape?: Record<string, number> } | null
 	/*
 	 * THE PHOTO BOOTH AND THE NAMES (0.4.2) - all cheap, none of them identity. Plain strings on the wire;
 	 * the frame checks each against its own table and names a word it does not know (`types.ts` has the
-	 * unions). `names` REPLACES the held set rather than merging per stage.
+	 * unions). `names` REPLACES the held set rather than merging per stage. `hat` is the bird's own and is
+	 * drawn in every view (0.4.3): alone, on the shoulder (`view: 'agent'`) and in first person (`'hands'`).
 	 */
 	hat?: string | null
 	backdrop?: string | null
@@ -188,6 +190,20 @@ export type FramePet = {
 	effect?: string | null
 	names?: { chick?: string; pullet?: string; hen?: string } | null
 	nameLabel?: boolean
+	/**
+	 * ON AN OPERATOR'S SHOULDER (0.4.3) - with `view: 'agent'` the pet sits on `agent`'s left shoulder, and
+	 * this holds one of its three shoulder performances; `null` or absent chains them as the game does.
+	 * Cheap. A frame that predates it names it as an unknown key and chains.
+	 */
+	shoulder?: 1 | 2 | 3 | null
+	/**
+	 * THE EMOTES (0.4.3) - a take from `data/petEmotes.json` (`'trick'`, `'trick-trick03'`, with `view:
+	 * 'hands'` the held set), and two momentary controls: `paused` freezes the pet, and a changed `replay`
+	 * plays the emote again from its start. All cheap; a frame that predates them names them as unknown keys.
+	 */
+	emote?: string | null
+	paused?: boolean
+	replay?: number
 }
 
 /**

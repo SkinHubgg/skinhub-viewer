@@ -323,8 +323,11 @@ export type PetLook = { attributes?: Record<string, number>; shape?: Record<stri
  *              the three breeds are a pullet or a hen (the default). IDENTITY for a breed - see below.
  *   `variant`  the colour group index (the item's style in the game), or `null` (default) for no style:
  *              the model's default group. The seed never picks it. Updates IN PLACE.
- *   `petSeed`  the `pet seed` attribute, a uint32. Default `0`. Updates IN PLACE. A seed rolls the
- *              same colour shifts and body shape the game does.
+ *   `petSeed`  the `pet seed` attribute, a uint32, or `null` for NO SEED: the colour group's base look,
+ *              the colours as painted. Absent is no seed too on the first render (before 0.4.3 an absent
+ *              seed drew seed 0); after that, leaving it out keeps the seed already on screen, so send
+ *              `null` to go back to the base look. `0` is the game's seed 0, a different picture.
+ *              Updates IN PLACE. A seed rolls the same colour shifts and body shape the game does.
  *   `pose`     a clip name from the pet's own model, or `null` (default) for its idle. IN PLACE. On the
  *              egg only, `'chicknegg_hatch01'` / `'chicknegg_hatch02'` play the hatch (the shell breaks
  *              and the chick climbs out; 02 is the shorter take). Any other pet idles on those two.
@@ -340,7 +343,8 @@ export type ViewerPetSubject = {
 	id: number
 	stage?: PetStage
 	variant?: number | null
-	petSeed?: number
+	/** (0.4.3: `null` added) A uint32, or `null` for no seed - the base look. See above. */
+	petSeed?: number | null
 	pose?: string | null
 	look?: PetLook | null
 	/* ── The photo booth and the names (0.4.2). All update IN PLACE and none sends `onReady` again; only
@@ -349,6 +353,10 @@ export type ViewerPetSubject = {
 	 * A photo booth hat, or `null` (default) for none. Ignored on the egg, which has no head. Without a
 	 * {@link backdrop}, wearing one frames the bird a little looser, once: switching hats does not move the
 	 * camera, and taking the last one off gives it back.
+	 *
+	 * (0.4.3) THE BIRD'S OWN, SO IT IS DRAWN IN EVERY VIEW: the pet alone, on the operator's shoulder
+	 * (`view="agent"`) and in first person (`view="hands"`), riding every animation on the pet's head. Only
+	 * the pet alone re-frames for it; on a shoulder or in the hands the camera stays where it was. IN PLACE.
 	 */
 	hat?: PetHat | null
 	/**
@@ -379,6 +387,26 @@ export type ViewerPetSubject = {
 	names?: PetNames | null
 	/** Draw the shown stage's name above the bird. Default `false`. */
 	nameLabel?: boolean
+	/**
+	 * (0.4.3) ONLY WITH `view="agent"`, where the pet sits on the operator's left shoulder (see
+	 * {@link ViewerView}): hold one of the bird's three shoulder performances - `1`, `2`, or `3` (it
+	 * flaps) - or `null` (default) to chain them the way CS2's loadout does. Updates IN PLACE.
+	 */
+	shoulder?: 1 | 2 | 3 | null
+	/**
+	 * (0.4.3) What the pet does, from the game's own animation graph (`data/petEmotes.json`): a category
+	 * such as `'trick'`, `'squat'`, `'sleep'` or `'walk'` plays the game's own pick from it, and a category
+	 * and one of its takes (`'trick-trick03'`, `'squat-squat01'`; the colon form `'trick:trick03'` is read
+	 * too) plays that take. A take that loops keeps playing; a one-shot plays once and the pet goes back
+	 * to its idle. With `view="hands"` it picks from
+	 * the held set: `'held'` (the whole inspect) or `'held-step0'` / `'held-step1'` / `'held-step2'` (draw,
+	 * idle 1, idle 2 on their own). Wins over {@link pose}. `null` (default) is the idle. Updates IN PLACE.
+	 */
+	emote?: string | null
+	/** (0.4.3) Freeze the pet (and in `view="hands"` the arms holding it) where it is. Default `false`. IN PLACE. */
+	paused?: boolean
+	/** (0.4.3) Change this number to play {@link emote} again from its start. IN PLACE. */
+	replay?: number
 }
 
 /** The ten photo booth hats, by the game's own names. */
@@ -438,6 +466,19 @@ export type PetNames = { chick?: string; pullet?: string; hen?: string }
  *   `hands`   CS2's first-person viewmodel, driven by the game's own clips. Orbit is off here because
  *             there is nothing to orbit: the weapon is welded to the eye.
  *   `agent`   an operator holding the weapon, at conversational distance, orbitable.
+ *
+ * *** AND ON A PET (0.4.3), `agent` PUTS IT ON AN OPERATOR'S SHOULDER. *** `pet={...}` with
+ * `view="agent"` draws {@link SkinViewerProps.agent} (its `id` and `pose`, nothing in their hands) with
+ * the pet on the left shoulder, framed from the chest up - CS2's loadout picture. The pet's id, stage,
+ * colour, seed, look and `hat` are the bird's; `pet.shoulder` picks its performance, and `pet.nameLabel`
+ * draws its name over it. The rest of the photo booth (backdrop, light, effect) stays with the pet alone.
+ * The egg cannot sit on a shoulder and is drawn on its own.
+ *
+ * *** AND `hands` ON A PET (0.4.3) IS THE PET IN YOUR HANDS, FIRST PERSON *** - CS2's inventory inspect.
+ * {@link SkinViewerProps.agent}'s first-person arms (and {@link SkinViewerProps.gloves}) hold the pet at
+ * its full size, both playing the game's held clips on one clock: the draw, then two idles in turn. Every
+ * stage has one, the egg included. `pet.emote` picks from the held set; `pet.hat` is worn; the rest of the
+ * booth, the name label and the shoulder are not drawn, and the camera does not orbit.
  *
  * *** A VIEW CHANGE RELOADS. *** It rebuilds the rig, so it goes behind the loading card exactly as a
  * weapon change does.

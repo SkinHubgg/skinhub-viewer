@@ -76,14 +76,18 @@
 	"pet": [
 		"backdrop",
 		"effect",
+		"emote",
 		"hat",
 		"id",
 		"light",
 		"look",
 		"nameLabel",
 		"names",
+		"paused",
 		"petSeed",
 		"pose",
+		"replay",
+		"shoulder",
 		"stage",
 		"variant"
 	],

@@ -303,7 +303,9 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 		params.set('pet', String(pet.id))
 		if (pet.stage) params.set('stage', pet.stage)
 		if (pet.variant !== undefined) params.set('variant', pet.variant === null ? '' : String(pet.variant))
-		num(params, 'petseed', pet.petSeed)
+		/* NULL IS NO SEED, which on a fresh frame is the absent param (the base look) - never `?petseed=null`,
+		   which the frame names as a problem. Later changes to it ride the wire, where `null` is a value. */
+		num(params, 'petseed', pet.petSeed ?? undefined)
 		if (pet.pose) params.set('pose', pet.pose)
 		const look = petLookParam(pet.look)
 		if (look) params.set('look', look)
@@ -320,6 +322,10 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 			if (name) params.set(`${stage}name`, name)
 		}
 		if (pet.nameLabel !== undefined) flag(params, 'namelabel', pet.nameLabel)
+		// On an operator's shoulder (0.4.3). `null` is the chain, written as the frame's empty value.
+		if (pet.shoulder !== undefined) params.set('shoulder', pet.shoulder === null ? '' : String(pet.shoulder))
+		/* What it does (0.4.3). `paused` and `replay` are momentary and ride only on the wire, never the URL. */
+		if (pet.emote) params.set('emote', pet.emote)
 	}
 
 	if (item) {
@@ -345,7 +351,10 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 
 	if (desired.view) params.set('view', desired.view)
 	if (desired.agent?.id !== undefined) params.set('agent', String(desired.agent.id))
-	if (desired.agent?.pose && !desired.pet?.pose) params.set('pose', desired.agent.pose)
+	/* WITH A PET ON THE URL `?pose=` IS THE BIRD'S CLIP, so the operator's pose (the one carrying it, under
+	   `view="agent"`) goes in `?agentpose=` (0.4.3) - it used to be written as `?pose=` when the pet had
+	   none, where the frame read it as a pet clip. */
+	if (desired.agent?.pose) params.set(desired.pet ? 'agentpose' : 'pose', desired.agent.pose)
 	if (desired.gloves !== undefined) params.set('glove', desired.gloves ? gloveParam(desired.gloves) : 'none')
 
 	const s = desired.settings

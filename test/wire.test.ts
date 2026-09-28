@@ -111,6 +111,9 @@ const wire = () => ({
 	/* 0.4.2 adds the photo booth (`hat`, `backdrop`, `light`, `effect`) and the names (`names`,
 	   `nameLabel`) - all cheap, additive under protocol 2 like `pet` itself was in 0.4.1: a frame that
 	   predates them names them as unknown keys and draws the bird without them. */
+	/* 0.4.3 adds `shoulder` - the bird's held clip on an operator's shoulder (`view: 'agent'`), cheap and
+	   additive on the same terms - and the emotes: `emote` (a take from `data/petEmotes.json`), `paused`
+	   and `replay`, the same terms again. */
 	pet: keysOf<FrameState['pet']>()([
 		'id',
 		'stage',
@@ -124,6 +127,10 @@ const wire = () => ({
 		'effect',
 		'names',
 		'nameLabel',
+		'shoulder',
+		'emote',
+		'paused',
+		'replay',
 	]),
 	petStages: membersOf<NonNullable<FrameState['pet']['stage']>>()(['egg', 'chick', 'pullet', 'hen']),
 	petLook: keysOf<NonNullable<FrameState['pet']['look']>>()(['attributes', 'shape']),
