@@ -511,6 +511,28 @@ export type ViewerGloves = {
 	seed?: number
 }
 
+/**
+ * *** THE `hands` VIEW'S VIEWMODEL, WRITTEN AS A PLAYER'S CONFIG HAS IT (0.4.4). ***
+ *
+ * CS2's `viewmodel_fov` and `viewmodel_offset_x/y/z`: `{ fov: 68, x: 2.5, y: 0, z: -1.5 }` is
+ * `viewmodel_presetpos 2`. Any field left out is CS2's own default for it, a fresh install's look - fov
+ * `60`, x `1`, y `1`, z `-1` (`viewmodel_presetpos 1`).
+ *
+ * Each value must be on the game's own track: fov `60`..`68`, x `-2`..`2.5`, y and z `-2`..`2`. One
+ * outside it is not clamped - the frame keeps the value it had and reports it through `onError` as
+ * `bad-message`. Ignored by every view but `hands`, and by a pair of gloves in it.
+ */
+export type ViewerViewmodel = {
+	/** `viewmodel_fov`, degrees, `60`..`68`. */
+	fov?: number
+	/** `viewmodel_offset_x`, `-2`..`2.5`. Positive moves the weapon right. */
+	x?: number
+	/** `viewmodel_offset_y`, `-2`..`2`. Positive moves it away from the eye. */
+	y?: number
+	/** `viewmodel_offset_z`, `-2`..`2`. Positive moves it up. */
+	z?: number
+}
+
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
  * SETTINGS
  *
@@ -910,6 +932,14 @@ export type SkinViewerProps = ViewerSubject & {
 	agent?: ViewerAgent
 	/** What they have on their hands, or `null` for their own default pair. See {@link ViewerGloves}. */
 	gloves?: ViewerGloves | null
+	/**
+	 * The `hands` view's `viewmodel_fov` and offsets (0.4.4). See {@link ViewerViewmodel}.
+	 *
+	 * On the `<iframe src>` for the first paint, then a per-field patch on every change - drive it from
+	 * a slider, it never reloads. Dropping a field, or the prop, leaves the frame where it was; pass the
+	 * default values to go back.
+	 */
+	viewmodel?: ViewerViewmodel
 	/** Four groups, shallow-merged per group over our defaults. See {@link ViewerSettings}. */
 	settings?: ViewerSettings
 	/** See {@link ViewerInteractions}. Orbiting and zooming are on, editing is off. */

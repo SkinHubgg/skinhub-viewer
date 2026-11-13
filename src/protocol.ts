@@ -207,6 +207,15 @@ export type FramePet = {
 }
 
 /**
+ * THE `hands` VIEW'S VIEWMODEL (0.4.4) - CS2's `viewmodel_fov` and `viewmodel_offset_x/y/z`, in the
+ * game's units. `?vmfov=`/`?vmx=`/`?vmy=`/`?vmz=`. The frame holds all four, starting at CS2's own
+ * default (60, 1, 1, -1), and merges a patch per field. Each must be on the game's track - fov 60..68, x
+ * -2..2.5, y and z -2..2 - or the frame names it and keeps the value it had. Cheap, never a reload; a
+ * frame that predates it names it as an unknown key and draws the default.
+ */
+export type FrameViewmodel = { fov: number; x: number; y: number; z: number }
+
+/**
  * Everything `/frame` holds. One field per prop of the renderer that a host can set.
  *
  * *** THE FIVE SUBJECTS ARE HELD AT ONCE AND `subject` PICKS ONE. *** A patch naming `sticker` does
@@ -242,6 +251,8 @@ export type FrameState = {
 	 * `loading`; see the prop.
 	 */
 	hostLoading: boolean
+	/** The `hands` view's convars (0.4.4). See {@link FrameViewmodel}. */
+	viewmodel: FrameViewmodel
 }
 
 /**
@@ -268,6 +279,8 @@ export type FramePatch = {
 	editingSlot?: number
 	/** See {@link FrameState.hostLoading}. A host may also change its mind after boot, so it is a patch field. */
 	hostLoading?: boolean
+	/** Per field: `{ fov: 60 }` keeps x, y and z. See {@link FrameViewmodel}. */
+	viewmodel?: Partial<FrameViewmodel>
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════

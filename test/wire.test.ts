@@ -85,6 +85,7 @@ const wire = () => ({
 		'interactions',
 		'editingSlot',
 		'hostLoading',
+		'viewmodel',
 	]),
 	patch: keysOf<FramePatch>()([
 		'subject',
@@ -100,7 +101,11 @@ const wire = () => ({
 		'interactions',
 		'editingSlot',
 		'hostLoading',
+		'viewmodel',
 	]),
+	/* 0.4.4: the hands view's viewmodel_fov and offsets. Cheap, merged per field, additive under protocol 2:
+	   a frame that predates it names it as an unknown key and draws its default. */
+	viewmodel: keysOf<FrameState['viewmodel']>()(['fov', 'x', 'y', 'z']),
 
 	/* The six things the viewer can show. `weapon` covers gloves too - a glove is a `weaponType`. */
 	subjects: membersOf<FrameState['subject']>()(['weapon', 'sticker', 'charm', 'collectible', 'agent', 'pet']),

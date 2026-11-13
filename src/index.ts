@@ -95,6 +95,7 @@ export type {
 	ViewerSubject,
 	ViewerTextDirection,
 	ViewerView,
+	ViewerViewmodel,
 } from './types.js'
 export { CHEAP_FIELDS, MAP_NAMES } from './types.js'
 

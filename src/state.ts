@@ -42,6 +42,7 @@ import type {
 	FrameSettings,
 	FrameSticker,
 	FrameSubjectKind,
+	FrameViewmodel,
 	PlacementSlots,
 } from './protocol.js'
 import { resolveStandalone, resolveSubject } from './item.js'
@@ -100,6 +101,8 @@ export type DesiredState = {
 	 * defaults - it is our default and it stays ours to change.
 	 */
 	hostLoading: boolean
+	/** The `hands` view's convars (0.4.4), only the fields the caller passed. Absent says nothing. */
+	viewmodel?: Partial<FrameViewmodel>
 }
 
 /**
@@ -142,9 +145,11 @@ const HELP_FOR: Record<SkinViewerError['code'], HelpReason | null> = {
  */
 export const resolveState = (props: Partial<SkinViewerProps>): DesiredState => {
 	const settings = toFrameSettings(props.settings)
+	const viewmodel = toFrameViewmodel(props.viewmodel)
 	/* Everything true of every subject. Hoisted so the two returns below cannot drift apart. */
 	const common = {
 		hostLoading: hostDrawsLoading(props),
+		...(viewmodel !== undefined && { viewmodel }),
 		...(props.view !== undefined && { view: props.view }),
 		...(props.agent !== undefined && { agent: props.agent }),
 		...(props.gloves !== undefined && { gloves: props.gloves }),
@@ -218,6 +223,18 @@ const toFrameSettings = (settings: SkinViewerProps['settings']): FrameSettings |
 	return out
 }
 
+/**
+ * The viewmodel prop as the wire's: a copy holding only the fields that are set, so `{ fov: on ? 60 :
+ * undefined }` says nothing about fov rather than sending a hole. No range check here - the frame owns
+ * the tracks and names an off-track value. `undefined` when nothing is set.
+ */
+const toFrameViewmodel = (viewmodel: SkinViewerProps['viewmodel']): Partial<FrameViewmodel> | undefined => {
+	if (!viewmodel) return undefined
+	const out: Partial<FrameViewmodel> = {}
+	for (const key of VIEWMODEL_KEYS) if (viewmodel[key] !== undefined) out[key] = viewmodel[key]
+	return Object.keys(out).length > 0 ? out : undefined
+}
+
 /* ═════════════════════════════════════════════════════════════════════════════════════════════
  * THE URL
  * ═══════════════════════════════════════════════════════════════════════════════════════════ */
@@ -248,6 +265,13 @@ const LABEL_PARAMS: Record<keyof FrameLabels, string> = {
 	loadingView: 'labelloadingview',
 	noModel: 'labelnomodel',
 }
+
+/**
+ * The viewmodel's params - the frame's and the SkinHub app's own spelling. A `Record` over the keys so
+ * a field added to {@link FrameViewmodel} and not spelled here fails to compile.
+ */
+const VIEWMODEL_PARAMS: Record<keyof FrameViewmodel, string> = { fov: 'vmfov', x: 'vmx', y: 'vmy', z: 'vmz' }
+const VIEWMODEL_KEYS = Object.keys(VIEWMODEL_PARAMS) as (keyof FrameViewmodel)[]
 
 /**
  * The initial `<iframe src>`, and the state that URL actually expressed.
@@ -415,6 +439,9 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 	 * default into a customer's `<iframe src>` is the thing this file is careful never to do.
 	 */
 	if (desired.hostLoading) params.set('hostloading', '1')
+
+	// The hands view's convars (0.4.4), only the ones passed - on the src so the first paint has them.
+	for (const key of VIEWMODEL_KEYS) num(params, VIEWMODEL_PARAMS[key], desired.viewmodel?.[key])
 
 	const expressed: DesiredState =
 		item && !desired.inspectPayload && item.stickers ? { ...desired, item: { ...item, stickers: undefined } } : desired
@@ -597,6 +624,14 @@ export const diffState = (previous: DesiredState, next: DesiredState): FramePatc
 	 */
 	if (next.hostLoading !== previous.hostLoading) {
 		patch.hostLoading = next.hostLoading
+		changed = true
+	}
+
+	/* The viewmodel, per field - a slider moving fov sends `{ fov }` alone. Cheap, so it is not in
+	   {@link coversCanvas}. A dropped prop or field sends nothing, like a settings group. */
+	const viewmodel = diffGroup(previous.viewmodel, next.viewmodel)
+	if (viewmodel) {
+		patch.viewmodel = viewmodel
 		changed = true
 	}
 

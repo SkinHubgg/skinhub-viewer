@@ -62,6 +62,7 @@ Exactly one subject is required - `item`, `inspectLink`, `sticker`, `charm`, `co
 | `view` | `'gun' \| 'hands' \| 'agent'` | `'gun'` | item alone, first-person, or held by an operator |
 | `agent` | `{ id, pose? }` | default T | who is *holding* the weapon, in `hands` and `agent`. `operator` is the agent shown alone |
 | `gloves` | `{ type, paintIndex, float?, seed? } \| null` | `null` | `null` is the wearer's own pair |
+| `viewmodel` | `{ fov?, x?, y?, z? }` | `60, 1, 1, -1` | the `hands` view's `viewmodel_fov` and `viewmodel_offset_x/y/z`, in CS2's units. fov `60`..`68`, x `-2`..`2.5`, y and z `-2`..`2`; off-track is `bad-message`, not clamped. Updates in place |
 | `settings` | `{ camera?, quality?, environment?, overlays?, locale? }` | see below | shallow-merged per group |
 | `interactions` | `{ orbit?, zoom?, dragStickers?, dragCharm? }` | orbit + zoom on | what the user may do |
 | `editingSlot` | `number` | `-1` | which sticker slot is open; `5` is the charm |
@@ -81,6 +82,19 @@ building pickers.
 
 `view`, `agent`, `gloves` and `editingSlot` describe a weapon, and the other four subjects ignore them.
 `settings` and `interactions` apply to all six.
+
+### Viewmodel (0.4.4)
+
+`viewmodel` is the player's own `viewmodel_fov` / `viewmodel_offset_x/y/z`, for `view="hands"`. Write it
+the way a config has it - `{ fov: 68, x: 2.5, y: 0, z: -1.5 }` is `viewmodel_presetpos 2`. A field you
+leave out is CS2's own default (60, 1, 1, -1), a fresh install's look. It is on the first `src`,
+and after that each change is a patch of just the fields that moved, so it can follow a slider:
+
+```tsx
+<SkinViewer item={item} view="hands" viewmodel={{ fov, x, y, z }} />
+```
+
+Dropping a field or the whole prop leaves the frame where it was - pass the default values to go back.
 
 ### If your product is not in English
 

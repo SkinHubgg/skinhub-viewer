@@ -375,6 +375,26 @@ field inside `?i=`, because the explicit one is the more specific statement.
 **Omitting `glove` is not "bare hands".** Every agent ships a default pair of their own, and that is
 what you get.
 
+### The viewmodel, in the `hands` view (0.4.4)
+
+CS2's own four convars, in the game's units - the numbers in a player's config:
+
+| parameter | convar | range | default |
+|---|---|---|---|
+| `vmfov` | `viewmodel_fov` | `60`..`68` | `60` |
+| `vmx` | `viewmodel_offset_x` - positive moves the weapon right | `-2`..`2.5` | `1` |
+| `vmy` | `viewmodel_offset_y` - positive moves it away from you | `-2`..`2` | `1` |
+| `vmz` | `viewmodel_offset_z` - positive moves it up | `-2`..`2` | `-1` |
+
+```
+?weapon=weapon_ak47&paint=1449&view=hands&vmfov=68&vmx=2.5&vmy=0&vmz=-1.5   viewmodel_presetpos 2
+```
+
+The defaults are CS2's own, a fresh install's (`viewmodel_presetpos 1`). Send any subset; the rest stay
+at the default. A value outside its range is **not clamped** - it is dropped and named in `problems`,
+and that field keeps its default. Inert outside `view=hands`, and for a pair of gloves in it. Live, it is
+`set({ viewmodel: { fov: 62 } })`, per field and in place.
+
 ### Which side of the item faces you
 
 | parameter | values | default |
@@ -669,6 +689,7 @@ set({
   interactions: { orbit, zoom, dragStickers, dragCharm },
   editingSlot: -1,
   hostLoading: false,
+  viewmodel: { fov, x, y, z },
 })
 ```
 
@@ -725,7 +746,7 @@ This is the part that decides whether the embed feels like a component or like a
 
 | changing this | |
 |---|---|
-| `float`, `seed`, `statTrak`, `nameTag`, stickers, the charm, **anything under `settings` or `interactions`** | **updates in place.** No loading card, no blank frame, no dropped frames. Drive it from a slider at 60 Hz |
+| `float`, `seed`, `statTrak`, `nameTag`, stickers, the charm, `viewmodel`, **anything under `settings` or `interactions`** | **updates in place.** No loading card, no blank frame, no dropped frames. Drive it from a slider at 60 Hz |
 | `item.weaponType`, `item.paintIndex`, `item.legacyModel`, `view`, and `agent.id` in the `agent` view | **reloads.** The viewer covers itself until the new model has actually drawn, and shows nothing rather than something half-built |
 
 The same split, for the other four subjects:

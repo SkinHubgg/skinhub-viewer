@@ -37,7 +37,8 @@
 		"settings",
 		"sticker",
 		"subject",
-		"view"
+		"view",
+		"viewmodel"
 	],
 	"patch": [
 		"agent",
@@ -52,7 +53,14 @@
 		"settings",
 		"sticker",
 		"subject",
-		"view"
+		"view",
+		"viewmodel"
+	],
+	"viewmodel": [
+		"fov",
+		"x",
+		"y",
+		"z"
 	],
 	"subjects": [
 		"agent",
