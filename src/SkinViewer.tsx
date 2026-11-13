@@ -28,6 +28,9 @@
  *   3. THE MESSAGE IS A DIFF. See `state.ts`: sending the whole state every tick would be correct on
  *      the wire and would still re-seed the renderer's sticker draft sixty times a second.
  *
+ *   4. THE `<iframe>` IS NEVER IN THE SERVER'S HTML (0.4.5). The frame posts `hello` once, as its script
+ *      runs, and never again. See `listening` below for what a server-rendered iframe did with it.
+ *
  * ═════════════════════════════════════════════════════════════════════════════════════════════
  * *** AND THE SECOND: A STALE PACKAGE FAILS LOUDLY, NEVER PARTIALLY. ***
  *
@@ -131,8 +134,8 @@ export const SkinViewer = (props: SkinViewerProps) => {
 	 * *** THE `src`, AND THE STATE THAT `src` EXPRESSED. ***
 	 *
 	 * Built in a `useState` INITIALISER rather than an effect, so the first frame anyone sees is the
-	 * integrator's item and not ours corrected a tick later - and so a server render emits the same
-	 * attribute the browser will, with no hydration mismatch to paper over.
+	 * integrator's item and not ours corrected a tick later. The server never renders the iframe (see
+	 * `listening`), so this `src` is first used in the browser.
 	 *
 	 * `nonce` is the `<iframe>`'s key and only `reload()` moves it. See point 2 in the header.
 	 */
@@ -328,6 +331,23 @@ export const SkinViewer = (props: SkinViewerProps) => {
 		return () => window.removeEventListener('message', onMessage)
 	}, [flush, report])
 
+	/**
+	 * *** THE IFRAME WAITS FOR THE LISTENER ABOVE, BECAUSE `hello` IS SAID ONCE. ***
+	 *
+	 * Server-rendered, the iframe was in the HTML and started loading with the page. The frame posts
+	 * `hello` as soon as its script runs, and on a page that hydrates slower than that - a dev build
+	 * always, a phone on a slow network often - it landed before this component had a listener. Nothing
+	 * asks for it again, so the viewer never connected: `unreachable` after 15s, the `fallback` drawn
+	 * over a scene that was rendering fine underneath, and every later prop change held back by
+	 * `flush`, which waits on `connected`. A host saw "did not load" and sliders that moved nothing.
+	 *
+	 * So the first render - the server's and the hydrating one alike, which keeps them identical - draws
+	 * the box and the `loading` overlay with no iframe, and the iframe arrives on the next render, after
+	 * this commit's effects have attached the listener. A client-only mount pays one extra render.
+	 */
+	const [listening, setListening] = useState(false)
+	useEffect(() => setListening(true), [])
+
 	/* ── THE SUBJECT'S OWN FAILURES ───────────────────────────────────────────────────────────── */
 	/*
 	 * `no-item`, `bad-inspect-link` and `unknown-weapon` happen HERE rather than in the frame - they are
@@ -423,52 +443,55 @@ export const SkinViewer = (props: SkinViewerProps) => {
 
 	return (
 		<div ref={box} className={className} style={{ position: 'relative', ...style }}>
-			<iframe
-				/* Point 2 in the header. Nothing but `reload()` may move this. */
-				key={boot.nonce}
-				ref={frame}
-				src={boot.src}
-				title={title}
-				/*
-				 * *** NO `referrerPolicy`, AND THAT IS A DECISION. *** The embed reads the framing origin
-				 * from this request's `Referer` header. Setting `no-referrer` here - which looks like good
-				 * hygiene - would make every embed anonymous to us, which is not a privacy win for the host
-				 * (we already know the URL they asked for) and does break the one thing that header decides.
-				 */
-				style={{
-					position: 'absolute',
-					inset: 0,
-					width: '100%',
-					height: '100%',
-					border: 0,
-					// The frame paints nothing of its own, so the canvas composites over the host's page.
-					// Without this a browser's default white iframe background would sit in between.
-					background: 'transparent',
+			{/* Point 4 in the header: not before the listener exists. */}
+			{listening && (
+				<iframe
+					/* Point 2 in the header. Nothing but `reload()` may move this. */
+					key={boot.nonce}
+					ref={frame}
+					src={boot.src}
+					title={title}
 					/*
-					 * *** AND `background: transparent` IS NOT ENOUGH ON ITS OWN. *** A dark-themed host is
-					 * the common case, and it defeats the line above through a rule almost nobody has read.
-					 *
-					 * `color-scheme` INHERITS. A host that sets `color-scheme: dark` anywhere above this
-					 * element - and every Tailwind, NextUI, MUI or shadcn dark theme does, usually on
-					 * `<html>` - passes it down to this iframe. The frame's own document computes `normal`.
-					 * CSS Color Adjust says that when an iframe's used colour scheme differs from its
-					 * embedder's, the UA must render the iframe OPAQUE in its own scheme's canvas colour,
-					 * and for `normal` that colour is white.
-					 *
-					 * The result is a white plate behind the item THAT NEITHER DOCUMENT CAN SEE, because the
-					 * browser paints it between them: every element on both sides still computes
-					 * `rgba(0, 0, 0, 0)`, so a host debugging it finds nothing. One integrator lost most of a
-					 * day to it, walking the whole ancestor chain twice before instrumenting the UA rule.
-					 *
-					 * Pinning `normal` matches what the frame computes, which is the entire requirement, and
-					 * it is deterministic: `normal` resolves light on both sides whatever the visitor's OS is
-					 * set to. A host that wants a plate behind the item still puts one on the element it
-					 * wraps this in.
+					 * *** NO `referrerPolicy`, AND THAT IS A DECISION. *** The embed reads the framing origin
+					 * from this request's `Referer` header. Setting `no-referrer` here - which looks like good
+					 * hygiene - would make every embed anonymous to us, which is not a privacy win for the host
+					 * (we already know the URL they asked for) and does break the one thing that header decides.
 					 */
-					colorScheme: 'normal',
-					display: 'block',
-				}}
-			/>
+					style={{
+						position: 'absolute',
+						inset: 0,
+						width: '100%',
+						height: '100%',
+						border: 0,
+						// The frame paints nothing of its own, so the canvas composites over the host's page.
+						// Without this a browser's default white iframe background would sit in between.
+						background: 'transparent',
+						/*
+						 * *** AND `background: transparent` IS NOT ENOUGH ON ITS OWN. *** A dark-themed host is
+						 * the common case, and it defeats the line above through a rule almost nobody has read.
+						 *
+						 * `color-scheme` INHERITS. A host that sets `color-scheme: dark` anywhere above this
+						 * element - and every Tailwind, NextUI, MUI or shadcn dark theme does, usually on
+						 * `<html>` - passes it down to this iframe. The frame's own document computes `normal`.
+						 * CSS Color Adjust says that when an iframe's used colour scheme differs from its
+						 * embedder's, the UA must render the iframe OPAQUE in its own scheme's canvas colour,
+						 * and for `normal` that colour is white.
+						 *
+						 * The result is a white plate behind the item THAT NEITHER DOCUMENT CAN SEE, because the
+						 * browser paints it between them: every element on both sides still computes
+						 * `rgba(0, 0, 0, 0)`, so a host debugging it finds nothing. One integrator lost most of a
+						 * day to it, walking the whole ancestor chain twice before instrumenting the UA rule.
+						 *
+						 * Pinning `normal` matches what the frame computes, which is the entire requirement, and
+						 * it is deterministic: `normal` resolves light on both sides whatever the visitor's OS is
+						 * set to. A host that wants a plate behind the item still puts one on the element it
+						 * wraps this in.
+						 */
+						colorScheme: 'normal',
+						display: 'block',
+					}}
+				/>
+			)}
 			{overlay === null || overlay === undefined ? null : (
 				/*
 				 * DRAWN OVER THE FRAME, NEVER INSIDE IT - a React element cannot be structured-cloned across

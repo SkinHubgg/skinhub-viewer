@@ -931,6 +931,9 @@ Honest list, so none of it is discovered late.
   not.
 - **Click-through.** See §9.
 - **Server-side rendering.** The viewer is WebGL; there is no server-rendered fallback image.
+  `@skinhub/viewer` 0.4.5 and later render nothing but the box and your `loading` slot on the server
+  and add the iframe in the browser. A hand-rolled host that server-renders the iframe must attach its
+  `message` listener before the frame's script runs - `hello` is sent once and never repeated.
 - **Render to an image.** There is no `capture()`: the canvas runs without a preserved drawing buffer,
   so a read from outside the render loop comes back blank. A PNG per item wants a render with no
   browser tab open anyway, and that is a separate service and is not built.

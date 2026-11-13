@@ -210,6 +210,11 @@ warns about that in development. Otherwise `onError` reports `unreachable` after
 URL it could not reach - that means the embed never answered, so check the origin is reachable from
 this browser and that your page's `Content-Security-Policy` allows framing it (`frame-src`).
 
+**`unreachable` on a server-rendered page, with the scene fine underneath and props that change
+nothing.** Fixed in 0.4.5 - update. Before it, the iframe was in the server's HTML and the embed said
+`hello` (once) before your page had hydrated, so the component never heard it. From 0.4.5 the iframe is
+only added in the browser, after the component is listening; your `loading` slot fills the box until then.
+
 **`onReady` fired but the picture is still covered.** `onReady` means "stopped loading" for the current
 identity, and it fires again after every weapon or view change. Treat it as a level, not an edge.
 
