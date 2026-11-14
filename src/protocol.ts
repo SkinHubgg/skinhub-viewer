@@ -212,8 +212,12 @@ export type FramePet = {
  * default (60, 1, 1, -1), and merges a patch per field. Each must be on the game's track - fov 60..68, x
  * -2..2.5, y and z -2..2 - or the frame names it and keeps the value it had. Cheap, never a reload; a
  * frame that predates it names it as an unknown key and draws the default.
+ *
+ * `leftHanded` (0.4.6) is `cl_prefer_lefthanded`: the frame mirrors the whole viewmodel, as the game
+ * does. `?vmleft=1`; `false` by default. Optional on the wire like the rest, so it needed no protocol
+ * bump: a 0.4.5 package reads a `hello` that carries it.
  */
-export type FrameViewmodel = { fov: number; x: number; y: number; z: number }
+export type FrameViewmodel = { fov: number; x: number; y: number; z: number; leftHanded: boolean }
 
 /**
  * Everything `/frame` holds. One field per prop of the renderer that a host can set.

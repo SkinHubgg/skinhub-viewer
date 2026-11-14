@@ -58,6 +58,7 @@
 	],
 	"viewmodel": [
 		"fov",
+		"leftHanded",
 		"x",
 		"y",
 		"z"

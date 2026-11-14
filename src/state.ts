@@ -232,6 +232,7 @@ const toFrameViewmodel = (viewmodel: SkinViewerProps['viewmodel']): Partial<Fram
 	if (!viewmodel) return undefined
 	const out: Partial<FrameViewmodel> = {}
 	for (const key of VIEWMODEL_KEYS) if (viewmodel[key] !== undefined) out[key] = viewmodel[key]
+	if (viewmodel.leftHanded !== undefined) out.leftHanded = viewmodel.leftHanded
 	return Object.keys(out).length > 0 ? out : undefined
 }
 
@@ -268,10 +269,16 @@ const LABEL_PARAMS: Record<keyof FrameLabels, string> = {
 
 /**
  * The viewmodel's params - the frame's and the SkinHub app's own spelling. A `Record` over the keys so
- * a field added to {@link FrameViewmodel} and not spelled here fails to compile.
+ * a number added to {@link FrameViewmodel} and not spelled here fails to compile. The hand is the one
+ * boolean, `?vmleft=`, written beside them in `frameUrl`.
  */
-const VIEWMODEL_PARAMS: Record<keyof FrameViewmodel, string> = { fov: 'vmfov', x: 'vmx', y: 'vmy', z: 'vmz' }
-const VIEWMODEL_KEYS = Object.keys(VIEWMODEL_PARAMS) as (keyof FrameViewmodel)[]
+const VIEWMODEL_PARAMS: Record<Exclude<keyof FrameViewmodel, 'leftHanded'>, string> = {
+	fov: 'vmfov',
+	x: 'vmx',
+	y: 'vmy',
+	z: 'vmz',
+}
+const VIEWMODEL_KEYS = Object.keys(VIEWMODEL_PARAMS) as (keyof typeof VIEWMODEL_PARAMS)[]
 
 /**
  * The initial `<iframe src>`, and the state that URL actually expressed.
@@ -442,6 +449,8 @@ export const frameUrl = (origin: string, desired: DesiredState): { src: string; 
 
 	// The hands view's convars (0.4.4), only the ones passed - on the src so the first paint has them.
 	for (const key of VIEWMODEL_KEYS) num(params, VIEWMODEL_PARAMS[key], desired.viewmodel?.[key])
+	// The hand (0.4.6), WRITTEN ONLY WHEN LEFT, like `?hostloading=`: right is the frame's default.
+	if (desired.viewmodel?.leftHanded) params.set('vmleft', '1')
 
 	const expressed: DesiredState =
 		item && !desired.inspectPayload && item.stickers ? { ...desired, item: { ...item, stickers: undefined } } : desired

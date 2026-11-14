@@ -47,6 +47,30 @@ describe('the src', () => {
 	})
 })
 
+describe('the hand (0.4.6)', () => {
+	test('left is ?vmleft=1 on the src; right, or no hand, writes nothing', () => {
+		expect(src({ ...item, view: 'hands', viewmodel: { leftHanded: true } }).get('vmleft')).toBe('1')
+		expect(src({ ...item, view: 'hands', viewmodel: { leftHanded: false } }).has('vmleft')).toBe(false)
+		expect(src({ ...item, view: 'hands', viewmodel: { fov: 64 } }).has('vmleft')).toBe(false)
+	})
+
+	test('it travels with the numbers and on its own', () => {
+		expect(resolveState({ ...item, viewmodel: { fov: 64, leftHanded: true } }).viewmodel).toEqual({
+			fov: 64,
+			leftHanded: true,
+		})
+		expect(resolveState({ ...item, viewmodel: { leftHanded: false } }).viewmodel).toEqual({ leftHanded: false })
+	})
+
+	test('switching hands is one cheap patch, the numbers left alone', () => {
+		const right = resolveState({ ...item, view: 'hands', viewmodel: { fov: 68, x: 2.5, y: 0, z: -1.5, leftHanded: false } })
+		const left = resolveState({ ...item, view: 'hands', viewmodel: { fov: 68, x: 2.5, y: 0, z: -1.5, leftHanded: true } })
+		const patch = diffState(right, left)
+		expect(patch).toEqual({ viewmodel: { leftHanded: true } })
+		expect(coversCanvas(patch ?? {}, left, right)).toBe(false)
+	})
+})
+
 describe('the wire', () => {
 	test('a slider moving one field sends that field alone, and it is cheap', () => {
 		const before = resolveState({ ...item, view: 'hands', viewmodel: { fov: 68, x: 1, y: 0, z: 0 } })

@@ -104,8 +104,9 @@ const wire = () => ({
 		'viewmodel',
 	]),
 	/* 0.4.4: the hands view's viewmodel_fov and offsets. Cheap, merged per field, additive under protocol 2:
-	   a frame that predates it names it as an unknown key and draws its default. */
-	viewmodel: keysOf<FrameState['viewmodel']>()(['fov', 'x', 'y', 'z']),
+	   a frame that predates it names it as an unknown key and draws its default. 0.4.6: `leftHanded`
+	   (cl_prefer_lefthanded), additive the same way - a 0.4.5 package reads a `hello` carrying it. */
+	viewmodel: keysOf<FrameState['viewmodel']>()(['fov', 'x', 'y', 'z', 'leftHanded']),
 
 	/* The six things the viewer can show. `weapon` covers gloves too - a glove is a `weaponType`. */
 	subjects: membersOf<FrameState['subject']>()(['weapon', 'sticker', 'charm', 'collectible', 'agent', 'pet']),

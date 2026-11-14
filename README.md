@@ -62,7 +62,7 @@ Exactly one subject is required - `item`, `inspectLink`, `sticker`, `charm`, `co
 | `view` | `'gun' \| 'hands' \| 'agent'` | `'gun'` | item alone, first-person, or held by an operator |
 | `agent` | `{ id, pose? }` | default T | who is *holding* the weapon, in `hands` and `agent`. `operator` is the agent shown alone |
 | `gloves` | `{ type, paintIndex, float?, seed? } \| null` | `null` | `null` is the wearer's own pair |
-| `viewmodel` | `{ fov?, x?, y?, z? }` | `60, 1, 1, -1` | the `hands` view's `viewmodel_fov` and `viewmodel_offset_x/y/z`, in CS2's units. fov `60`..`68`, x `-2`..`2.5`, y and z `-2`..`2`; off-track is `bad-message`, not clamped. Updates in place |
+| `viewmodel` | `{ fov?, x?, y?, z?, leftHanded? }` | `60, 1, 1, -1`, right hand | the `hands` view's `viewmodel_fov` and `viewmodel_offset_x/y/z`, in CS2's units, and `cl_prefer_lefthanded` as `leftHanded` (0.4.6). fov `60`..`68`, x `-2`..`2.5`, y and z `-2`..`2`; off-track is `bad-message`, not clamped. Updates in place |
 | `settings` | `{ camera?, quality?, environment?, overlays?, locale? }` | see below | shallow-merged per group |
 | `interactions` | `{ orbit?, zoom?, dragStickers?, dragCharm? }` | orbit + zoom on | what the user may do |
 | `editingSlot` | `number` | `-1` | which sticker slot is open; `5` is the charm |
@@ -91,8 +91,11 @@ leave out is CS2's own default (60, 1, 1, -1), a fresh install's look. It is on 
 and after that each change is a patch of just the fields that moved, so it can follow a slider:
 
 ```tsx
-<SkinViewer item={item} view="hands" viewmodel={{ fov, x, y, z }} />
+<SkinViewer item={item} view="hands" viewmodel={{ fov, x, y, z, leftHanded }} />
 ```
+
+`leftHanded` (0.4.6) is `cl_prefer_lefthanded`. The game mirrors the whole viewmodel for it, and so does
+the embed: `x: 2.5` puts the gun out to the left. Right-handed when you leave it out.
 
 Dropping a field or the whole prop leaves the frame where it was - pass the default values to go back.
 

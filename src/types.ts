@@ -521,6 +521,9 @@ export type ViewerGloves = {
  * Each value must be on the game's own track: fov `60`..`68`, x `-2`..`2.5`, y and z `-2`..`2`. One
  * outside it is not clamped - the frame keeps the value it had and reports it through `onError` as
  * `bad-message`. Ignored by every view but `hands`, and by a pair of gloves in it.
+ *
+ * `leftHanded` (0.4.6) is `cl_prefer_lefthanded`: the whole viewmodel mirrored to the left hand, as CS2
+ * draws it, so `x: 2.5` puts the gun out to the LEFT. Right-handed when left out.
  */
 export type ViewerViewmodel = {
 	/** `viewmodel_fov`, degrees, `60`..`68`. */
@@ -531,6 +534,8 @@ export type ViewerViewmodel = {
 	y?: number
 	/** `viewmodel_offset_z`, `-2`..`2`. Positive moves it up. */
 	z?: number
+	/** `cl_prefer_lefthanded` (0.4.6). `true` mirrors the viewmodel to the left hand. */
+	leftHanded?: boolean
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════════════════════

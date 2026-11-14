@@ -385,6 +385,7 @@ CS2's own four convars, in the game's units - the numbers in a player's config:
 | `vmx` | `viewmodel_offset_x` - positive moves the weapon right | `-2`..`2.5` | `1` |
 | `vmy` | `viewmodel_offset_y` - positive moves it away from you | `-2`..`2` | `1` |
 | `vmz` | `viewmodel_offset_z` - positive moves it up | `-2`..`2` | `-1` |
+| `vmleft` | `cl_prefer_lefthanded` - `1` mirrors the whole viewmodel to the left hand, as the game does (0.4.6) | `1`, `0` | `0` |
 
 ```
 ?weapon=weapon_ak47&paint=1449&view=hands&vmfov=68&vmx=2.5&vmy=0&vmz=-1.5   viewmodel_presetpos 2
@@ -393,7 +394,8 @@ CS2's own four convars, in the game's units - the numbers in a player's config:
 The defaults are CS2's own, a fresh install's (`viewmodel_presetpos 1`). Send any subset; the rest stay
 at the default. A value outside its range is **not clamped** - it is dropped and named in `problems`,
 and that field keeps its default. Inert outside `view=hands`, and for a pair of gloves in it. Live, it is
-`set({ viewmodel: { fov: 62 } })`, per field and in place.
+`set({ viewmodel: { fov: 62 } })`, per field and in place, and the hand is
+`set({ viewmodel: { leftHanded: true } })`. `vmleft` takes exactly `1` or `0`; anything else is named.
 
 ### Which side of the item faces you
 
